@@ -21,28 +21,20 @@ These are exactly the failure modes AXAG is designed to eliminate.
 
 ## What Counts as "Missing Intent"
 
-An element has a missing intent if it:
+`axag-lint` treats an element as interactive if it is:
 
-1. Is an interactive HTML element (`<button>`, `<a>`, `<input type="submit">`, `<form>`)
-2. Has a click handler, form action, or navigation target
-3. Does **not** have an `axag-intent` attribute
+- a `<button>`, `<a>`, `<input>`, `<select>`, `<textarea>` or `<form>`
+- any element with an `onclick` handler, `role="button"` or `type="submit"`
 
-### Elements That MUST Be Annotated
+An interactive element without `axag-intent` is reported by **AXAG-LINT-001**, with three exceptions where the element is already covered:
 
-| Element | Condition | Required |
-|---------|-----------|----------|
-| `<button>` | Always | Yes |
-| `<a>` with `href` | When performing an action (not just navigation) | Recommended |
-| `<input type="submit">` | Always | Yes |
-| `<form>` submit buttons | Always | Yes |
-| Elements with `onclick` | Always | Yes |
-| Elements with `role="button"` | Always | Yes |
+| Not reported | Why |
+|--------------|-----|
+| The submit button of an annotated `<form>` | The form's annotation describes the action |
+| A form that feeds an annotated button | The button's annotation describes the action, and the form's controls become its parameters |
+| An element with a bound spec (`axag={spec}`, `:axag`, `v-axag`, `[axag]`) | It is annotated at runtime; AXAG-LINT-033 reports that instead |
 
-### Elements That MAY Be Skipped
-
-- Pure navigational links (`<a href="/about">`)
-- Decorative elements
-- Elements inside annotated parents (if context inheritance applies)
+Plain navigation links are interactive too. Annotate the ones an agent should be able to follow (`axag="navigate:..."`), and turn AXAG-LINT-001 down for a project where most links aren't actions — see [Opting Out](#opting-out).
 
 ## Detection Rules
 
@@ -50,9 +42,9 @@ An element has a missing intent if it:
 
 ```
 Rule: AXAG-LINT-001
-Severity: Error
-Message: Interactive element missing axag-intent attribute
-Fix: Add axag-intent with the semantic operation identifier
+Default severity: error
+Message: Interactive <button> element is missing axag-intent attribute
+Fix: Add axag-intent, or an axag macro, with the semantic operation identifier
 ```
 
 **Failing example:**
@@ -69,23 +61,26 @@ Fix: Add axag-intent with the semantic operation identifier
   axag-intent="order.place"
   axag-entity="order"
   axag-action-type="write"
+  axag-risk-level="high"
+  axag-confirmation-required="true"
+  axag-idempotent="false"
 >Place Order</button>
 ```
 
-### AXAG-LINT-001a: Missing Entity
+### AXAG-LINT-002: Missing Entity
 
 ```
-Rule: AXAG-LINT-001a
-Severity: Error
+Rule: AXAG-LINT-002
+Default severity: error
 Message: Element has axag-intent but missing axag-entity
-Fix: Add axag-entity with the domain object name
+Fix: Add axag-entity with the domain object name, or use the macro, which implies it from the intent
 ```
 
-### AXAG-LINT-001b: Missing Action Type
+### AXAG-LINT-003: Missing Action Type
 
 ```
-Rule: AXAG-LINT-001b
-Severity: Error
+Rule: AXAG-LINT-003
+Default severity: error
 Message: Element has axag-intent but missing axag-action-type
 Fix: Add axag-action-type with read, write, delete, or navigate
 ```
@@ -107,33 +102,29 @@ Annotation Coverage = (annotated interactive elements / total interactive elemen
 | Comprehensive | 76–99% | Production-ready |
 | Complete | 100% | Full semantic contract |
 
-## Scanning Approach
+`axag-lint` doesn't report a coverage percentage. The count of AXAG-LINT-001 findings in its JSON output (`--format json`) is the number of uncovered elements, which is the figure to drive down.
 
-A missing-intent scanner should:
+## Opting Out
 
-1. Parse the HTML/JSX/TSX file
-2. Identify all interactive elements
-3. Check each for `axag-intent`
-4. Report unannotated elements with file path and line number
-5. Exclude elements marked with `axag-skip="true"` (opt-out)
+There is no per-element opt-out attribute. Where a whole category of element shouldn't be annotated, change the rule's severity or exclude the files:
 
-### Opt-Out Mechanism
-
-For elements that intentionally lack annotations (e.g., purely decorative interactions):
-
-```html
-<!-- Explicitly excluded from annotation requirements -->
-<button axag-skip="true" onclick="toggleTheme()">🌙</button>
+```json title=".axaglintrc.json"
+{
+  "exclude": ["node_modules/**", "dist/**", "src/marketing/**"],
+  "rules": {
+    "AXAG-LINT-001": "warning"
+  }
+}
 ```
+
+For an existing codebase, a [baseline](/docs/validation/ci-linting) is usually better than lowering severity: current findings are recorded and ignored, and only new unannotated elements fail the build.
 
 ## CI Integration
 
 ```yaml
 - name: Check for missing intents
-  run: npx axag-lint src --format github
+  run: npx axag-lint src --format github --baseline
 ```
-
-The `--threshold` flag sets the minimum annotation coverage percentage. The build fails if coverage drops below this threshold.
 
 ## Next Steps
 

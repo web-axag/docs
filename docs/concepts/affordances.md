@@ -17,7 +17,7 @@ In AX, affordances are **declared capabilities**. An AXAG-annotated element decl
 |------------------|---------------------|
 | A button shape suggests "clickable" | `axag-action-type="write"` declares "invocable operation" |
 | A text field suggests "typeable" | `axag-parameter-type="string"` declares "accepts text input" |
-| A dropdown suggests "selectable" | `axag-parameter-type="enum"` declares "accepts constrained value" |
+| A dropdown suggests "selectable" | `axag-parameter-enum='["draft","published"]'` declares "accepts one of these values" |
 
 ## Agent-Facing Affordances
 

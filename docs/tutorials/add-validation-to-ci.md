@@ -12,7 +12,7 @@ This tutorial shows how to integrate AXAG validation into your CI/CD pipeline to
 ## Step 1: Install Dependencies
 
 ```bash title="Install AXAG dev dependencies"
-npm install -D @web-axag/axag-cli @web-axag/axag-lint
+npm install -D @web-axag/cli @web-axag/lint
 ```
 
 ## Step 2: Create Lint Configuration
@@ -46,7 +46,7 @@ Create `.axaglintrc.json`. Every rule has a default severity, so list only the o
 
 `axag generate` compiles the manifest from your sources and `--validate` checks it against the JSON Schema. Generating the manifest first means the cross-reference rules have something current to compare with.
 
-An app with a bundler can skip the generate step: [`@axag/compiler`](/docs/tool-generation/build-time-compilation) writes the manifest on every build.
+An app with a bundler can skip the generate step: [`@web-axag/compiler`](/docs/tool-generation/build-time-compilation) writes the manifest on every build.
 
 ## Step 4: GitHub Actions Workflow
 

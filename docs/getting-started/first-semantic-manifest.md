@@ -39,8 +39,8 @@ The generated Semantic Manifest entry is:
   "generated_at": "2026-09-14T00:00:00.000Z",
   "source": {
     "paths": ["src"],
-    "tool": "axag-cli",
-    "tool_version": "1.0.2"
+    "tool": "@web-axag/cli",
+    "tool_version": "1.1.0"
   },
   "conformance": "intermediate",
   "actions": [
@@ -90,11 +90,11 @@ Parameters listed by name (`'["query"]'`) are typed as `string`. To declare type
 
 Manifests can be generated through:
 
-1. **Build-time extraction** — A build plugin scans annotated HTML/JSX and outputs manifest JSON
-2. **Runtime extraction** — A client-side script reads `axag-*` attributes from the live DOM
-3. **Static analysis** — A linter or analyzer processes source files without rendering
+1. **At build time** — [`@web-axag/compiler`](/docs/tool-generation/build-time-compilation), a plugin for Vite, webpack, Rollup, Rspack and esbuild, writes the manifest and tools into your build output
+2. **In CI** — `npx axag generate src --manifest axag-manifest.json --validate` runs the same compiler without a bundler
+3. **In the page** — `registerDocument()` from [`@web-axag/webmcp`](/docs/frameworks/runtime) reads annotations from the live DOM, for pages with no build step
 
-The recommended approach is **build-time extraction** for production deployments.
+The recommended approach is **build-time**: nothing that reads annotations ships to the browser, and the manifest is identical whichever of the three produced it.
 
 ## Next Steps
 

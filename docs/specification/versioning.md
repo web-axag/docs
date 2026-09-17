@@ -14,9 +14,14 @@ The AXAG specification follows semantic versioning: `MAJOR.MINOR.PATCH`.
 - **PATCH** — Clarifications, typo fixes, informative content updates
 
 ## Annotation Versioning
-Annotations MAY declare the specification version they conform to:
+Annotations MAY declare the specification version they conform to. The manifest records the generator's version in its own `version` field, so `axag-version` is only needed where one page mixes annotations written against different versions:
 ```html
-<button axag-version="1.0.0" axag-intent="product.search" ...>Search</button>
+<button
+  axag-version="1.1.0"
+  axag-intent="product.search"
+  axag-entity="product"
+  axag-action-type="read"
+>Search</button>
 ```
 
 ## Backward Compatibility

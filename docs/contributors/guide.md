@@ -42,22 +42,33 @@ Thank you for your interest in contributing to the AXAG Standard! This guide exp
 
 ### Prerequisites
 
-- Node.js ≥ 18
-- npm or pnpm
+- Node.js ≥ 20
+- npm (documentation) or pnpm (SDK)
 - Git
 
-### Local Development Setup
+### Where things live
+
+| Repository | Contains |
+|------------|----------|
+| [web-axag/docs](https://github.com/web-axag/docs) | This site: the specification, guides, tutorials and examples |
+| [web-axag/sdk](https://github.com/web-axag/sdk) | The SDK: core, compiler, runtime, bindings, server, linter and CLI |
+
+### Local Development Setup — documentation
 
 ```bash
-# Clone the repository
-git clone https://github.com/me-saurabhkohli/mcp-agentify.git
-cd mcp-agentify/axag
-
-# Install dependencies
+git clone https://github.com/web-axag/docs.git
+cd axag-docs
 npm install
-
-# Start the development server
 npm start
+```
+
+### Local Development Setup — SDK
+
+```bash
+git clone https://github.com/web-axag/sdk.git
+cd axag-sdk
+pnpm install
+pnpm test
 ```
 
 The site will be available at `http://localhost:3000`.
@@ -98,7 +109,7 @@ axag/
 
 ### 1. Find or Create an Issue
 
-- Browse [open issues](https://github.com/me-saurabhkohli/mcp-agentify/issues)
+- Browse open issues for the [documentation](https://github.com/web-axag/docs/issues) or the [SDK](https://github.com/web-axag/sdk/issues)
 - If your contribution isn't covered by an existing issue, create one first
 - Wait for maintainer acknowledgement before starting large changes
 
@@ -119,7 +130,7 @@ Branch naming conventions:
 
 - Follow the [Style Guide](/docs/contributors/style-guide)
 - Add or update tests if applicable
-- Ensure all examples validate with `npm run validate`
+- Ensure all examples validate with `npm run validate:axag`
 
 ### 4. Test Locally
 
@@ -128,7 +139,7 @@ Branch naming conventions:
 npm run build
 
 # Run validation
-npm run validate
+npm run validate:axag
 
 # Run linting
 npm run lint

@@ -25,7 +25,7 @@ graph LR
 A bundler plugin reads source files (HTML, JSX, TSX, Vue SFC, Angular templates) and generates the manifest during the build. See [Build-Time Compilation](/docs/tool-generation/build-time-compilation).
 
 ### Runtime Extraction
-A client-side script reads `axag-*` attributes from the live DOM. Useful for dynamic applications where annotations are computed at runtime.
+`registerDocument()` from [`@web-axag/webmcp`](/docs/frameworks/runtime) reads annotations from the live DOM and registers them as tools. Useful for pages with no build step. Framework bindings register specs built at runtime the same way, action by action.
 
 ### Static Analysis
 An AST-based analyzer processes source files without rendering — `axag generate` in CI, using the same compiler as the bundler plugin. Most reliable for CI/CD validation.

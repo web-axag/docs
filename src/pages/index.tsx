@@ -111,38 +111,38 @@ const features = [
     link: '/docs/concepts/semantic-contract',
   },
   {
-    title: 'Semantic Manifest',
+    title: 'One Attribute',
+    emoji: '⚡',
+    description:
+      'axag="write:user.deactivate!critical?approval" says in one attribute what used to take five. Convert either way with axag fmt.',
+    link: '/docs/specification/macro-syntax',
+  },
+  {
+    title: 'Parameters From Your Forms',
     emoji: '📋',
     description:
-      'Annotations compile into a structured manifest exposing discoverable operations, parameters, and safety boundaries.',
-    link: '/docs/semantic-manifest/what-it-is',
+      'Names, types, constraints and labels are read from the form you already have — or from a Zod schema or OpenAPI operation.',
+    link: '/docs/semantic-manifest/schema-harvesting',
   },
   {
-    title: 'MCP Tool Generation',
+    title: 'Built Into Your App',
     emoji: '🔧',
     description:
-      'Manifests map directly to MCP-compatible tool definitions that agent runtimes consume deterministically.',
-    link: '/docs/tool-generation/mapping-rules',
+      'A Vite or webpack plugin emits the manifest and WebMCP tools on every build; React, Vue and Angular bindings register them.',
+    link: '/docs/getting-started/sdk',
   },
   {
-    title: 'Scraping Replacement',
-    emoji: '🚫',
-    description:
-      'Eliminates brittle DOM scraping, CSS selector maintenance, and label inference. Agents read contracts, not layouts.',
-    link: '/docs/intro/what-problems-axag-solves',
-  },
-  {
-    title: 'Safety & Governance',
+    title: 'Enforced, Not Just Declared',
     emoji: '🛡️',
     description:
-      'Risk classification, confirmation gates, approval requirements, and tenant boundaries as first-class dimensions.',
-    link: '/docs/concepts/safety-boundaries',
+      'Confirmation, approval and tenant boundaries are checked in the page and again on the server, where an agent can\'t skip them.',
+    link: '/docs/frameworks/safety',
   },
   {
     title: 'Standards-Grade',
     emoji: '🏆',
     description:
-      'Conformance levels, versioned spec, 26 validation rules, CI linting, and a governance model for enterprise adoption.',
+      'A versioned spec, conformance levels, 37 lint rules with SARIF and baselines, and a governance model for enterprise adoption.',
     link: '/docs/specification/conformance-levels',
   },
 ];
@@ -164,6 +164,57 @@ function HomepageFeatures() {
             </Link>
           ))}
         </div>
+      </div>
+    </section>
+  );
+}
+
+
+/* ─── Install ────────────────────────────────── */
+const installSteps = [
+  {
+    label: 'Check your annotations',
+    command: 'npx axag-lint src',
+    note: 'No install needed — 37 rules over HTML, JSX, TSX and Vue.',
+  },
+  {
+    label: 'Generate the manifest and tools',
+    command: 'npm install -D @web-axag/compiler',
+    note: 'A Vite, webpack, Rollup, Rspack or esbuild plugin that runs on every build.',
+  },
+  {
+    label: 'Register tools with the agent',
+    command: 'npm install @web-axag/webmcp',
+    note: 'Plus @web-axag/react, /vue or /angular to register from components.',
+  },
+  {
+    label: 'Enforce it on your server',
+    command: 'npm install @web-axag/server',
+    note: 'Confirmation tokens, approvals, roles and tenant boundaries an agent cannot skip.',
+  },
+];
+
+function HomepageInstall() {
+  return (
+    <section className={styles.install} id="install">
+      <div className="container">
+        <h2 className={styles.sectionTitle}>Install the SDK</h2>
+        <p className={styles.sectionSubtitle}>
+          Thirteen packages under the <code>@web-axag</code> scope, plus the <code>axag</code> and{' '}
+          <code>axag-lint</code> commands. Take only the ones you need.
+        </p>
+        <div className={styles.installGrid}>
+          {installSteps.map((step) => (
+            <div key={step.command} className={styles.installCard}>
+              <span className={styles.installLabel}>{step.label}</span>
+              <code className={styles.installCommand}>{step.command}</code>
+              <p className={styles.installNote}>{step.note}</p>
+            </div>
+          ))}
+        </div>
+        <Link className={styles.installLink} to="/docs/getting-started/sdk">
+          Which package does what →
+        </Link>
       </div>
     </section>
   );
@@ -200,11 +251,11 @@ function HomepageQuickLinks() {
             </div>
             <span className={styles.quickArrow}>→</span>
           </Link>
-          <Link to="/docs/examples/before-and-after" className={styles.quickCard}>
-            <span className={styles.quickIcon}>🔄</span>
+          <Link to="/docs/getting-started/sdk" className={styles.quickCard}>
+            <span className={styles.quickIcon}>📦</span>
             <div>
-              <h4>Before & After</h4>
-              <p>See scraping-based approaches vs AXAG semantic contracts side by side.</p>
+              <h4>The SDK</h4>
+              <p>Compiler, WebMCP runtime, React, Vue and Angular bindings, server enforcement and a linter.</p>
             </div>
             <span className={styles.quickArrow}>→</span>
           </Link>
@@ -220,7 +271,7 @@ function HomepageCTA() {
     <section className={styles.cta}>
       <div className="container">
         <h2>Ready to make your UI agent-accessible?</h2>
-        <p>Start with a single annotation. Build to a full semantic contract.</p>
+        <p>Start with a single annotation. Let your build turn it into tools an agent can use.</p>
         <div className={styles.ctaButtons}>
           <Link
             className="button button--primary button--lg"
@@ -228,15 +279,15 @@ function HomepageCTA() {
           >
             Add Your First Annotation
           </Link>
-          <Link
-            className="button button--outline button--lg"
-            to="https://cli.axag.org"
-          >
-            ⚡ Try the CLI
+          <Link className="button button--outline button--lg" to="/#install">
+            ⚡ Install the SDK
+          </Link>
+          <Link className="button button--outline button--lg" to="/docs/getting-started/sdk">
+            📦 Explore the SDK
           </Link>
           <Link
             className="button button--outline button--lg"
-            to="https://github.com/web-axag/axag-docs"
+            to="https://github.com/web-axag/sdk"
           >
             ⭐ Star on GitHub
           </Link>
@@ -261,6 +312,7 @@ export default function Home(): JSX.Element {
         <HomepageAgentView />
         <HomepageStats />
         <HomepageFeatures />
+        <HomepageInstall />
         <HomepageDomainCarousel />
         <HomepageQuickLinks />
         <HomepageCTA />

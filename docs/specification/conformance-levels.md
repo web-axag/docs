@@ -33,4 +33,18 @@ Every Semantic Manifest declares its conformance level in the `conformance` fiel
 }
 ```
 
-The CLI's `axag validate --level` flag accepts the same names. The earlier `A`, `AA`, `AAA` names are still accepted and map to `basic`, `intermediate`, `full`.
+### How Generators Compute It
+
+`@web-axag/compiler` and `axag generate` compute the level from every action in the manifest:
+
+| Level | Every action has | And |
+|-------|------------------|-----|
+| `basic` | `intent`, `entity`, `action_type`, `description` | — |
+| `intermediate` | the above, plus `risk_level`, and `idempotent` on every write or delete | — |
+| `full` | the above, plus `scope` | at least one action declares preconditions or side effects |
+
+A manifest that fails a level's checks is reported at the level below it, so the claim never overstates the annotations. Note that the generator looks for `axag-scope` at `full` rather than at `intermediate`, and doesn't require parameters to be declared — an action can legitimately take none.
+
+### Validating Against a Level
+
+`axag validate --level basic|intermediate|full` runs only the lint rules that belong to that level and below: identity, vocabulary and parameters at `basic`; safety, scope and harvesting at `intermediate`; contradictions, manifest cross-references and server enforcement at `full`. The earlier `A`, `AA`, `AAA` names are still accepted and map to `basic`, `intermediate`, `full`.

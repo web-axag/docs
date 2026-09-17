@@ -82,6 +82,8 @@ A generated tool surface following the Model Context Protocol (MCP) specificatio
 
 The planning and execution layer. It reads the tool registry, selects appropriate tools, validates constraints, and performs operations — all without scraping or visual inference.
 
+In a browser, tools reach the agent through WebMCP, registered for as long as their UI is on screen. The server behind them enforces what the contract declared, so an agent can't skip a confirmation or cross a tenant boundary by calling the API directly. See [The SDK](/docs/getting-started/sdk).
+
 ## A Concrete Example
 
 Consider a search button on an e-commerce product page.
@@ -133,9 +135,19 @@ Now the agent knows:
 - ✅ It is a read (non-mutating) operation
 - ✅ It requires a `query` parameter
 - ✅ It optionally accepts `category`, `price_min`, `price_max`, `sort_by`
-- ✅ It operates within the `catalog` scope
+- ✅ It is public — no sign-in needed
 - ✅ It has no risk
 - ✅ It is idempotent — safe to retry
+
+The same contract fits in one attribute with the [macro shorthand](/docs/specification/macro-syntax), and the parameters can come from the search form itself rather than being listed by hand — see [Schema Harvesting](/docs/semantic-manifest/schema-harvesting):
+
+```html
+<form axag="read:product.search!none?idempotent&scope=public">
+  <label for="q">Search products</label>
+  <input id="q" name="query" required>
+  <button type="submit">Search</button>
+</form>
+```
 
 ## What AXAG Is Not
 
@@ -160,8 +172,8 @@ Now the agent knows:
 ## Who Should Use AXAG?
 
 - **Frontend engineers** — Annotate UI elements with semantic contracts
-- **Platform teams** — Generate manifests and tool registries from annotations
-- **Agent runtime builders** — Consume tool registries for deterministic interaction
+- **Platform teams** — Generate manifests and tools on every build with `@web-axag/compiler`, and enforce safety with `@web-axag/server`
+- **Agent runtime builders** — Consume tools through WebMCP, or through the MCP bridge from outside the browser
 - **Product architects** — Design agent-ready interface semantics
 - **Standards committees** — Govern annotation vocabulary and conformance levels
 

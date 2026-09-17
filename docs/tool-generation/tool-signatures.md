@@ -31,7 +31,9 @@ Each MCP tool has a signature consisting of: name, description, input schema, an
 }
 ```
 
+The same action in a WebMCP tool definition carries `inputSchema` and `annotations.axag` instead of `input_schema` and `metadata` — the fields are the same. See [Mapping Rules](/docs/tool-generation/mapping-rules).
+
 ## Naming Conventions
 - Tool names MUST be unique within a tool registry
-- Tool names SHOULD use snake_case
-- Tool names SHOULD be verb_noun or noun_verb format
+- A tool's name is its intent with `.` replaced by `_`, so `product.search` becomes `product_search` — snake_case, `entity_verb`, and always traceable back to the annotation
+- Names are not configurable: to change a tool's name, change the intent

@@ -20,10 +20,16 @@ Manifests MUST be validated before consumption by agent runtimes.
 ## Validation in CI
 
 ```yaml
-# Example CI step
-- name: Validate AXAG Manifest
+# Generate the manifest and check it against the JSON Schema
+- name: Generate and validate the manifest
+  run: npx axag generate src --manifest axag-manifest.json --validate
+
+# Check the annotations themselves at a conformance level
+- name: Validate annotations
   run: npx axag validate src --level intermediate --strict
 ```
+
+`--validate` on `generate` is the schema check: the manifest must match [`axag-manifest.schema.json`](pathname:///schema/v1.1/axag-manifest.schema.json), which rejects unknown fields as well as invalid ones. `axag validate` checks the source annotations instead. A build that generates the manifest with [`@web-axag/compiler`](/docs/tool-generation/build-time-compilation) validates on every build and fails on error diagnostics.
 
 ## Common Validation Failures
 
@@ -31,5 +37,5 @@ Manifests MUST be validated before consumption by agent runtimes.
 |---------|-------|-----|
 | Missing required fields | Annotations incomplete | Add missing `axag-*` attributes |
 | Invalid enum value | Typo in action type or risk level | Use values from canonical vocabulary |
-| Parameter mismatch | Manifest lists parameters not in annotations | Regenerate manifest from source |
+| Manifest drift | A committed manifest generated from older source | Regenerate it, or generate on every build |
 | Safety violation | High-risk mutation without confirmation | Add `axag-confirmation-required="true"` |

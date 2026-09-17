@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import styles from './styles.module.css';
+// Generated at build time by scripts/generate-site-stats.mjs, so these can't drift.
+import siteStats from '@site/src/data/site-stats.json';
 
 interface Stat {
   value: number;
@@ -9,12 +11,12 @@ interface Stat {
 }
 
 const stats: Stat[] = [
-  { value: 144, label: 'Documentation Pages', icon: '📄' },
-  { value: 8, label: 'Industry Domains', icon: '🏭' },
-  { value: 99, label: 'Validated Examples', icon: '✅' },
-  { value: 26, label: 'Lint Rules', icon: '🔍' },
-  { value: 18, label: 'Specification Attributes', icon: '🏷️' },
-  { value: 3, label: 'Conformance Levels', icon: '🎯' },
+  { value: siteStats.documentationPages, label: 'Documentation Pages', icon: '📄' },
+  { value: siteStats.industryDomains, label: 'Industry Domains', icon: '🏭' },
+  { value: siteStats.validatedExamples, label: 'Validated Examples', icon: '✅' },
+  { value: siteStats.lintRules, label: 'Lint Rules', icon: '🔍' },
+  { value: siteStats.specificationAttributes, label: 'Specification Attributes', icon: '🏷️' },
+  { value: siteStats.sdkPackages, label: 'SDK Packages', icon: '📦' },
 ];
 
 function useCountUp(target: number, isVisible: boolean, duration = 1500): number {

@@ -73,6 +73,17 @@ The agent invokes `product_search` with:
 
 The operation returns matching products. The agent presents them to the user with relevant details.
 
+## How the Tool Reached the Agent
+
+Nothing above was hand-written for the agent. The tool came from the annotation, by one of two routes:
+
+1. **At build time**, [`@web-axag/compiler`](/docs/tool-generation/build-time-compilation) read the annotated search form and emitted the tool alongside the manifest.
+2. **In the page**, [`@web-axag/webmcp`](/docs/frameworks/runtime) registered it with the browser's `document.modelContext` while the search form was on screen — and unregistered it when the person navigated away.
+
+An agent running in the browser sees it there. An agent outside the browser — a desktop client — reaches the same tool through [`@web-axag/bridge`](/docs/frameworks/bridge).
+
+When the agent called `product_search`, the runtime filled the form with those parameters and pressed Search, exactly as a person would. An app can pass its own handler instead, to call its API directly.
+
 ## What Made This Possible
 
 Without AXAG, the agent would need to:
@@ -94,5 +105,6 @@ With AXAG, the agent:
 ## Next Steps
 
 - [Implementation Prerequisites](/docs/getting-started/implementation-prerequisites)
+- [The SDK](/docs/getting-started/sdk)
 - [Core Concepts](/docs/concepts/agent-experience)
 - [Authoring Guide](/docs/authoring-guide/annotating-buttons)

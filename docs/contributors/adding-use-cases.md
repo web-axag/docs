@@ -144,7 +144,7 @@ Add your domain to `docs/use-cases/overview.md`:
 
 ```bash
 npm run build
-npm run validate
+npm run validate:axag
 ```
 
 ---

@@ -14,16 +14,16 @@ WebMCP is a draft. Annotating a page for agents shouldn't wait for it to ship ev
 ## The shim
 
 ```bash
-npm install @axag/shim
+npm install @web-axag/shim
 ```
 
 ```ts
-import { installShim } from '@axag/shim';
+import { installShim } from '@web-axag/shim';
 
 installShim(); // does nothing where the browser has its own implementation
 ```
 
-It implements the part of the draft a page calls — `registerTool(tool, { signal })`, with abort unregistering — so [`@axag/webmcp`](/docs/frameworks/runtime) and the framework bindings work unchanged. Under 2 KB gzipped, no dependencies.
+It implements the part of the draft a page calls — `registerTool(tool, { signal })`, with abort unregistering — so [`@web-axag/webmcp`](/docs/frameworks/runtime) and the framework bindings work unchanged. Under 2 KB gzipped, no dependencies.
 
 Installing it connects no agent. It is the socket a connection plugs into.
 
@@ -39,7 +39,7 @@ npx axag-bridge --origin https://app.example.com
 ```
 
 ```ts
-import { connectBridge } from '@axag/bridge/client';
+import { connectBridge } from '@web-axag/bridge/client';
 
 connectBridge({ url: 'ws://127.0.0.1:53422', pairingCode: '7f3a91c2' });
 ```
@@ -78,8 +78,8 @@ Calls run **in the tab**, in the session the person is already signed into. No c
 
 | Situation | Reach for |
 |-----------|-----------|
-| Browser ships WebMCP | Nothing extra — [`@axag/webmcp`](/docs/frameworks/runtime) uses it |
-| Browser has no WebMCP, agent runs in the page | `@axag/shim` |
-| Agent runs outside the browser (desktop client, terminal) | `@axag/shim` + `@axag/bridge` |
+| Browser ships WebMCP | Nothing extra — [`@web-axag/webmcp`](/docs/frameworks/runtime) uses it |
+| Browser has no WebMCP, agent runs in the page | `@web-axag/shim` |
+| Agent runs outside the browser (desktop client, terminal) | `@web-axag/shim` + `@web-axag/bridge` |
 
 MCP is an open protocol, and its remote transport is Streamable HTTP; the standalone SSE transport is deprecated. The bridge speaks stdio by default because that is what desktop clients configure most easily.

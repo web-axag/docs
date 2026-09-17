@@ -29,3 +29,6 @@ Multi-step workflows use workflow attributes to declare step position and flow.
   </section>
 </div>
 ```
+
+The workflow attributes describe the flow for people reading the markup; they aren't carried into the 1.1 manifest. What an agent actually uses to order the steps is the chain of `axag-preconditions` and `axag-postconditions` — see [Composite Flows](/docs/authoring-guide/annotating-composite-flows). Declare both: the workflow attributes document the UI, the conditions document the contract.
+

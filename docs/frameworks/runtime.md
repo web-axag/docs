@@ -12,13 +12,13 @@ keywords: [webmcp, modelcontext, runtime, abortsignal, registration]
 A manifest tells an agent what a page *can* do. The runtime tells it what the page can do **right now** — which actions are on screen, enabled, and permitted for this user.
 
 ```bash
-npm install @axag/webmcp
+npm install @web-axag/webmcp
 ```
 
 ## Registration follows the UI
 
 ```ts
-import { registerManifest } from '@axag/webmcp';
+import { registerManifest } from '@web-axag/webmcp';
 import { tools } from 'virtual:axag/tools';
 
 const route = new AbortController();
@@ -74,7 +74,7 @@ An agent running in the page can call your API directly. Middleware improves wha
 ## Pages without a build step
 
 ```ts
-import { registerDocument } from '@axag/webmcp';
+import { registerDocument } from '@web-axag/webmcp';
 registerDocument({ signal: controller.signal });
 ```
 
@@ -88,6 +88,6 @@ The runtime uses `document.modelContext`, falling back to `navigator.modelContex
 
 | Framework | Package | Reach for |
 |-----------|---------|-----------|
-| React | [`@axag/react`](/docs/frameworks/react) | `useAxag`, `<AxagAction>` |
-| Vue | [`@axag/vue`](/docs/frameworks/vue) | `useAxag`, `v-axag` |
-| Angular | [`@axag/angular`](/docs/frameworks/angular) | `[axag]` directive |
+| React | [`@web-axag/react`](/docs/frameworks/react) | `useAxag`, `<AxagAction>` |
+| Vue | [`@web-axag/vue`](/docs/frameworks/vue) | `useAxag`, `v-axag` |
+| Angular | [`@web-axag/angular`](/docs/frameworks/angular) | `[axag]` directive |

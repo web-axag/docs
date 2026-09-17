@@ -94,7 +94,7 @@ function parseAxagAttributes(html: string): ParsedAnnotation {
   return result;
 }
 
-// Mirrors @axag/core's readAnnotation and actionToTool so the playground shows real output.
+// Mirrors @web-axag/core's readAnnotation and actionToTool so the playground shows real output.
 function humanizeIntent(intent: string): string {
   return intent.replace(/\./g, ' ').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }

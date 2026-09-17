@@ -69,32 +69,34 @@ When `axag-idempotent="false"` and side effects are declared, the agent knows:
 
 ## Error Semantics
 
-AXAG error codes provide structured failure information:
+A refused call comes back in one flat shape, with a code an agent can branch on:
 
-```json title="AXAG error response — structured failure info"
+```json title="AXAG refusal — structured failure info"
 {
-  "error": {
-    "code": "AXAG-ERR-PRECONDITION",
-    "message": "Precondition not met: cart must not be empty",
-    "retryable": true,
-    "recovery_action": "Ensure cart has items before placing order",
-    "failed_precondition": "cart_not_empty"
-  }
+  "error": "AXAG_PRECONDITION_FAILED",
+  "status": 412,
+  "message": "Precondition not met: cart must not be empty",
+  "intent": "order.place",
+  "details": { "failed_precondition": "cart_not_empty" }
 }
 ```
 
-### Error Categories
+### Deciding Whether to Retry
 
-| Error Code | Meaning | Retryable | Agent Action |
-|-----------|---------|-----------|-------------|
-| `AXAG-ERR-PRECONDITION` | Precondition not met | Yes (after fixing state) | Satisfy precondition, then retry |
-| `AXAG-ERR-PARAMETER` | Invalid or missing parameter | Yes (with corrected params) | Fix parameters, then retry |
-| `AXAG-ERR-UNAUTHORIZED` | Insufficient permissions | No | Escalate to human |
-| `AXAG-ERR-RATE-LIMIT` | Rate limit exceeded | Yes (after delay) | Wait and retry with backoff |
-| `AXAG-ERR-CONFLICT` | Concurrent modification | Yes (after refresh) | Refresh state, then retry |
-| `AXAG-ERR-NOT-FOUND` | Entity does not exist | No | Report to user |
-| `AXAG-ERR-SERVER` | Transient server error | Yes (with backoff) | Retry with exponential backoff |
-| `AXAG-ERR-PERMANENT` | Permanent failure | No | Escalate to human |
+The code says what went wrong; the annotation says whether trying again is safe.
+
+| Error Code | Retry? | Agent Action |
+|-----------|--------|-------------|
+| `AXAG_PRECONDITION_FAILED` | After fixing state | Satisfy the precondition, then retry |
+| `AXAG_MISSING_PARAM`, `AXAG_INVALID_TYPE`, `AXAG_OUT_OF_RANGE`, `AXAG_INVALID_ENUM`, `AXAG_INVALID_FORMAT` | With corrected parameters | Fix parameters, then retry |
+| `AXAG_CONFIRMATION_MISSING` | After the person confirms | Ask the person, then retry with the new token |
+| `AXAG_APPROVAL_MISSING` | After approval is granted | Request approval, then retry |
+| `AXAG_ROLE_INSUFFICIENT`, `AXAG_APPROVAL_INVALID` | No | Escalate to a person |
+| `AXAG_SCOPE_VIOLATION`, `AXAG_TENANT_BOUNDARY` | No | Stop — the call was out of bounds |
+| `AXAG_INTENT_NOT_FOUND` | After refreshing tools | The action may no longer be on the page |
+| Network failure or HTTP 5xx | Only if `idempotent` is `true` | Retry with exponential backoff; otherwise check state first |
+
+Transport failures — timeouts, 5xx — aren't AXAG refusals, and they are where `axag-idempotent` matters most: the agent can't tell whether a non-idempotent write happened, so it should read the entity's state before trying again. See the [Error Codes Reference](/docs/reference/error-codes).
 
 ## Recovery Flow Example
 
@@ -130,13 +132,14 @@ AXAG error codes provide structured failure information:
   axag-intent="payment.charge"
   axag-entity="payment"
   axag-action-type="write"
-  axag-required-parameters='["cart_id","payment_method_id","amount"]'
+  axag-required-parameters='["cart_id","payment_method_id",{"name":"amount","type":"number","min":0.01}]'
   axag-preconditions='["inventory_reserved","payment_method_valid"]'
   axag-postconditions='["payment_processed"]'
   axag-idempotent="false"
   axag-risk-level="high"
   axag-confirmation-required="true"
   axag-side-effects='["payment_charged"]'
+  axag-description="Charge the payment method for the cart. Not idempotent: check payment status before retrying"
 >Process Payment</button>
 ```
 
@@ -145,31 +148,40 @@ AXAG error codes provide structured failure information:
 2. If Step 2 fails → retry (idempotent with same cart_id)
 3. If Step 3 fails → **do NOT retry** — check payment status first, then decide
 
-## Semantic Manifest with Retry Metadata
+## Semantic Manifest
 
-```json title="Manifest — payment.charge with retry metadata" showLineNumbers
+Retry behaviour isn't a separate block in the manifest. It follows from fields the action already has — `idempotent`, `side_effects`, `preconditions` — and the description is the place for a recovery hint written for the agent.
+
+```json title="Manifest — payment.charge" showLineNumbers
 {
   "intent": "payment.charge",
   "entity": "payment",
   "action_type": "write",
-  "idempotent": false,
+  "operation_id": "payment_charge",
+  "description": "Charge the payment method for the cart. Not idempotent: check payment status before retrying",
+  "required_parameters": [
+    { "name": "cart_id", "type": "string" },
+    { "name": "payment_method_id", "type": "string" },
+    { "name": "amount", "type": "number", "min": 0.01 }
+  ],
+  "optional_parameters": [],
   "risk_level": "high",
+  "confirmation_required": true,
+  "idempotent": false,
   "side_effects": ["payment_charged"],
-  "error_handling": {
-    "retryable_errors": ["AXAG-ERR-RATE-LIMIT", "AXAG-ERR-SERVER"],
-    "non_retryable_errors": ["AXAG-ERR-PARAMETER", "AXAG-ERR-UNAUTHORIZED"],
-    "max_retries": 0,
-    "recovery_hint": "Check payment status before retrying"
-  }
+  "preconditions": ["inventory_reserved", "payment_method_valid"],
+  "postconditions": ["payment_processed"]
 }
 ```
 
-## Generated MCP Tool
+## Generated WebMCP Tool
+
+`idempotent: false` becomes `idempotentHint: false`, which agent hosts read to decide whether a failed call may be retried automatically.
 
 ```json title="Tool — payment_charge (no auto-retry)" showLineNumbers
 {
   "name": "payment_charge",
-  "description": "Process payment — NOT idempotent, do not retry without checking status",
+  "description": "Charge the payment method for the cart. Not idempotent: check payment status before retrying",
   "inputSchema": {
     "type": "object",
     "properties": {
@@ -179,12 +191,22 @@ AXAG error codes provide structured failure information:
     },
     "required": ["cart_id", "payment_method_id", "amount"]
   },
-  "safety": {
-    "risk_level": "high",
-    "idempotent": false,
-    "confirmation_required": true,
-    "side_effects": ["payment_charged"],
-    "retry_policy": "no_auto_retry"
+  "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "axag": {
+      "action_type": "write",
+      "risk_level": "high",
+      "idempotent": false,
+      "confirmation_required": true,
+      "approval_required": false,
+      "source_intent": "payment.charge",
+      "source_entity": "payment",
+      "side_effects": ["payment_charged"],
+      "preconditions": ["inventory_reserved", "payment_method_valid"],
+      "postconditions": ["payment_processed"]
+    }
   }
 }
 ```

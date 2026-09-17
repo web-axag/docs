@@ -168,8 +168,7 @@ A visual gallery of AXAG-annotated UI patterns across industry domains. Each car
   axag-intent="opportunity.advance_stage"
   axag-entity="opportunity"
   axag-action-type="write"
-  axag-required-parameters='["opportunity_id","new_stage"]'
-  axag-constraints='{"new_stage": {"enum": ["qualification","proposal","negotiation","closed_won","closed_lost"]}}'
+  axag-required-parameters='["opportunity_id",{"name":"new_stage","type":"string","enum":["qualification","proposal","negotiation","closed_won","closed_lost"]}]'
   axag-preconditions='["opportunity exists","stage transition valid"]'
   axag-postconditions='["pipeline updated","forecast recalculated"]'
   axag-risk-level="medium"
@@ -266,8 +265,7 @@ A visual gallery of AXAG-annotated UI patterns across industry domains. Each car
   axag-intent="dataset.export"
   axag-entity="dataset"
   axag-action-type="read"
-  axag-required-parameters='["dataset_id","format"]'
-  axag-constraints='{"format": {"enum": ["csv","json","parquet","xlsx"]}}'
+  axag-required-parameters='["dataset_id",{"name":"format","type":"string","enum":["csv","json","parquet","xlsx"]}]'
   axag-risk-level="none"
   axag-idempotent="false"
   axag-async="true"
@@ -286,9 +284,8 @@ A visual gallery of AXAG-annotated UI patterns across industry domains. Each car
   axag-intent="ticket.create"
   axag-entity="ticket"
   axag-action-type="write"
-  axag-required-parameters='["subject","description","priority"]'
+  axag-required-parameters='["subject","description",{"name":"priority","type":"string","enum":["low","medium","high","critical"]}]'
   axag-optional-parameters='["category","attachments"]'
-  axag-constraints='{"priority": {"enum": ["low","medium","high","critical"]}}'
   axag-risk-level="low"
   axag-idempotent="false"
   axag-side-effects='["ticket_created","support_team_notified"]'
@@ -363,8 +360,7 @@ A visual gallery of AXAG-annotated UI patterns across industry domains. Each car
   axag-intent="access_request.approve_manager"
   axag-entity="access_request"
   axag-action-type="write"
-  axag-required-parameters='["request_id","decision","comments"]'
-  axag-constraints='{"decision": {"enum": ["approve","reject"]}}'
+  axag-required-parameters='["request_id",{"name":"decision","type":"string","enum":["approve","reject"]},"comments"]'
   axag-preconditions='["request status is pending_manager"]'
   axag-postconditions='["manager decision recorded","compliance reviewer notified"]'
   axag-risk-level="high"
@@ -380,8 +376,7 @@ A visual gallery of AXAG-annotated UI patterns across industry domains. Each car
   axag-intent="access_request.approve_compliance"
   axag-entity="access_request"
   axag-action-type="write"
-  axag-required-parameters='["request_id","decision","compliance_notes"]'
-  axag-constraints='{"decision": {"enum": ["approve","reject"]}}'
+  axag-required-parameters='["request_id",{"name":"decision","type":"string","enum":["approve","reject"]},"compliance_notes"]'
   axag-preconditions='["request status is pending_compliance","manager approved"]'
   axag-postconditions='["access provisioned","audit trail updated"]'
   axag-risk-level="critical"

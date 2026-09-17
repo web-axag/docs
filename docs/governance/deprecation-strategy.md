@@ -16,7 +16,7 @@ gantt
     title Deprecation Timeline
     dateFormat YYYY-MM
     section Phase
-    Deprecation Notice    :a1, 2024-01, 1M
+    Deprecation Notice    :a1, 2026-09, 1M
     Warning in Validators :a2, after a1, 3M
     Error in Validators   :a3, after a2, 6M
     Removal               :a4, after a3, 2M
@@ -34,11 +34,12 @@ gantt
 ```json
 {
   "deprecated": {
-    "field": "axag-side-effects",
-    "since": "0.2.0",
-    "removal": "1.0.0",
-    "reason": "Replaced by axag-postconditions with structured side-effect declarations",
-    "migration": "Move side-effects into axag-postconditions array with 'side_effect:' prefix"
+    "field": "axag-conformance",
+    "values": ["A", "AA", "AAA"],
+    "since": "1.1.0",
+    "removal": "2.0.0",
+    "reason": "Conformance levels are named for what they require, not graded like WCAG",
+    "migration": "Use basic, intermediate or full; A, AA and AAA are still accepted and mapped to them"
   }
 }
 ```
@@ -61,12 +62,14 @@ Every deprecation includes a migration guide with:
 
 ## How to Check for Deprecations
 
-```bash
-# Check for deprecated usage
-npx axag-lint src/ --check-deprecations
+`axag-lint` has no deprecation rule yet. Until it does, deprecations are announced in the release notes with a search you can run:
 
-# Output
-⚠️ DEPRECATED: axag-side-effects at src/Cart.tsx:42
-   Use axag-postconditions instead (removal in v1.0.0)
-   Migration: https://axag.org/docs/governance/deprecation-strategy#migration-guides
+```bash
+# Find annotations that declare themselves deprecated
+grep -rn 'axag-deprecated="true"' src/
+
+# Find uses of a value a release has deprecated, e.g. the pre-1.1 action types
+grep -rnE 'axag-action-type="(create|mutate)"' src/
 ```
+
+When a deprecated value is also invalid — as `create` and `mutate` are in 1.1 — `axag-lint` already reports it (AXAG-LINT-004).

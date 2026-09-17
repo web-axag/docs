@@ -43,6 +43,7 @@ AXAG uses "intent" to emphasize that the annotation describes *purpose*, not *me
 | **Semantic Manifest** | The JSON document containing all actions for a site |
 | **Schema** | The JSON Schema definition that validates a manifest |
 | **Specification** | The AXAG standard itself (this documentation) |
+| **Spec (object)** | In the SDK, the object `defineAction({...})` returns — one action described in TypeScript instead of attributes. See [React](/docs/frameworks/react). |
 
 ## Confirmation vs. Approval
 
@@ -86,3 +87,14 @@ Risk level and action type are orthogonal:
 | `medium` | Possible | ✅ Common | Possible |
 | `high` | Rare | ✅ Common | ✅ Common |
 | `critical` | Rare | ✅ Common | Possible |
+
+## Manifest vs Tool Registry vs Registered Tools
+
+| Term | What It Is |
+|------|-----------|
+| **Semantic Manifest** | Every action a build could find, as JSON — the source of truth |
+| **Tool Registry** | Those actions rewritten as MCP tool definitions, in a file |
+| **Registered tools** | What an agent in the browser actually sees right now: the actions whose elements are on screen, registered with `document.modelContext` |
+
+The first two are files produced at build time. The third is live, and smaller: a tool disappears when its control does.
+

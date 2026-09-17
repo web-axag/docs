@@ -13,9 +13,9 @@ This page catalogs the most frequent AXAG validation failures, their causes, and
 
 ### 1. Missing Required Attributes
 
-**Error**: `AXAG-LINT-001: Element has axag-* attributes but is missing axag-intent`
+**Error**: `AXAG-LINT-001: Interactive <button> element is missing axag-intent attribute` — or `AXAG-LINT-002` / `AXAG-LINT-003` when the intent is there but the entity or action type isn't.
 
-**Cause**: An element has some `axag-*` attributes but is missing one of the three required attributes (`axag-intent`, `axag-entity`, `axag-action-type`).
+**Cause**: An interactive element carries no annotation, or is missing one of the three required attributes (`axag-intent`, `axag-entity`, `axag-action-type`).
 
 **Fix**: Add the missing attribute.
 ```html title="❌ Missing required attributes → ✅ Fix"
@@ -60,7 +60,7 @@ This page catalogs the most frequent AXAG validation failures, their causes, and
 
 ### 4. Missing Safety Metadata
 
-**Error**: `AXAG-LINT-006: Element with risk_level "high" is missing confirmation_required`
+**Error**: `AXAG-LINT-006: axag-risk-level="high" should have axag-confirmation-required="true"`
 
 **Cause**: High or critical risk operations should require confirmation.
 
@@ -84,7 +84,7 @@ This page catalogs the most frequent AXAG validation failures, their causes, and
 
 ### 6. Missing Idempotency Declaration
 
-**Error**: `AXAG-LINT-007: Write action missing axag-idempotent declaration`
+**Error**: `AXAG-LINT-007: axag-action-type="write" should declare axag-idempotent`
 
 **Cause**: All write and delete operations should declare whether they're idempotent.
 
@@ -108,20 +108,26 @@ This page catalogs the most frequent AXAG validation failures, their causes, and
 
 **Fix**: Either add the intent to the manifest, or fix the typo in the annotation.
 
-### 9. Parameter Mismatch
+### 9. Manifest Drift
 
-**Error**: Parameter "user_role" in annotation not declared in manifest for intent "user.create"
+**Cause**: The committed manifest was generated from an older version of the source, so it no longer describes what the page does.
 
-**Cause**: The annotation references a parameter that the manifest doesn't define.
-
-**Fix**: Synchronize parameters between annotations and manifest.
+**Fix**: Regenerate it — `npx axag generate src --manifest axag-manifest.json` — or let [`@web-axag/compiler`](/docs/tool-generation/build-time-compilation) generate it on every build, which removes this class of failure entirely.
 
 ## Manifest Failures
 
 ### 10. Invalid Intent Format
 
-**Error**: Intent "productSearch" does not match pattern `^[a-z_]+\.[a-z_]+$`
+**Error**: `AXAG-LINT-034: axag-intent="productSearch" must be entity.verb in lowercase letters and underscores, e.g. "cart.add_item"`
 
-**Cause**: Intent must use `entity.action` format with snake_case.
+**Cause**: Intent must use `entity.verb` format in snake_case. The manifest schema rejects anything else.
 
 **Fix**: Rename to `product.search`.
+
+### 11. Macro and Longhand Disagree
+
+**Error**: `AXAG-LINT-028: axag macro conflicts with a longhand attribute`
+
+**Cause**: An element carries both `axag="write:user.deactivate!critical"` and a longhand attribute that says something different, such as `axag-risk-level="low"`.
+
+**Fix**: Keep one form. `npx axag fmt src --to macro` rewrites a file consistently.

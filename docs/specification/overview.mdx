@@ -16,9 +16,11 @@ import SchemaFieldTable from '@site/src/components/SchemaFieldTable';
 
 # AXAG Specification Overview
 
-**Status:** v1.0.0  
+**Status:** v1.1.0  
 **Classification:** Normative  
-**Last Updated:** 2026-03-21
+**Last Updated:** 2026-09-17
+
+v1.1 adds, without breaking v1.0 manifests: the [`axag` macro](/docs/specification/macro-syntax) (proposed), parameters [harvested from forms or bound from Zod and OpenAPI](/docs/semantic-manifest/schema-harvesting), the `public` scope, `tenant_boundary`, `required_roles`, `async` and `dynamic_actions` in the manifest, and the requirement that high-risk actions are [enforced on the server](/docs/frameworks/safety).
 
 This document provides the normative specification for the Agent Experience Accessibility Guidelines (AXAG) standard. It defines the vocabulary, annotation primitives, required and optional fields, conformance levels, and validation rules that govern AXAG implementations.
 
@@ -77,7 +79,7 @@ Production-ready annotation. In addition to Basic fields, every annotated elemen
   title="Intermediate Conformance — Additional Fields"
   fields={[
     { name: 'axag-required-parameters', type: 'string[]', required: true, description: 'JSON array of required parameter names', example: '["query"]' },
-    { name: 'axag-scope', type: 'string', required: true, description: 'The operational boundary', example: 'catalog' },
+    { name: 'axag-scope', type: 'string', required: true, description: 'The operational boundary: public, user, tenant, global', example: 'public' },
     { name: 'axag-risk-level', type: 'enum', required: true, description: 'Risk classification: none, low, medium, high, critical', example: 'none' },
     { name: 'axag-description', type: 'string', required: true, description: 'Human-readable operation description', example: 'Search the product catalog' },
   ]}

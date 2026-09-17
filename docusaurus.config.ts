@@ -11,7 +11,7 @@ const config: Config = {
   baseUrl: '/',
 
   organizationName: 'web-axag',
-  projectName: 'axag-docs',
+  projectName: 'docs',
   deploymentBranch: 'gh-pages',
   trailingSlash: false,
 
@@ -77,7 +77,7 @@ const config: Config = {
       {
         docs: {
           sidebarPath: './sidebars.ts',
-          editUrl: 'https://github.com/web-axag/axag-docs/tree/main/',
+          editUrl: 'https://github.com/web-axag/docs/tree/main/',
           showLastUpdateTime: true,
           remarkPlugins: [],
           rehypePlugins: [],
@@ -142,12 +142,17 @@ const config: Config = {
           position: 'left',
         },
         {
+          to: '/docs/getting-started/sdk',
+          label: 'SDK',
+          position: 'right',
+        },
+        {
           href: 'https://cli.axag.org',
           label: 'CLI',
           position: 'right',
         },
         {
-          href: 'https://github.com/web-axag/axag-docs',
+          href: 'https://github.com/web-axag/docs',
           position: 'right',
           className: 'header-github-link',
           'aria-label': 'GitHub repository',
@@ -165,6 +170,8 @@ const config: Config = {
             { label: 'Getting Started', to: '/docs/getting-started/mental-model' },
             { label: 'Core Concepts', to: '/docs/concepts/agent-experience' },
             { label: 'Tutorials', to: '/docs/tutorials/add-axag-to-page' },
+            { label: 'The SDK', to: '/docs/getting-started/sdk' },
+            { label: 'Frameworks', to: '/docs/frameworks/runtime' },
           ],
         },
         {
@@ -181,10 +188,10 @@ const config: Config = {
           items: [
             { label: 'Contributing', to: '/docs/contributors/guide' },
             { label: 'Governance', to: '/docs/governance/ownership-model' },
-            { label: 'GitHub (Docs)', href: 'https://github.com/web-axag/axag-docs' },
-            { label: 'GitHub (CLI)', href: 'https://github.com/axag-cli/axag-cli' },
-            { label: 'axag-cli', href: 'https://cli.axag.org' },
-            { label: 'Discussions', href: 'https://github.com/web-axag/axag-docs/discussions' },
+            { label: 'GitHub (Docs)', href: 'https://github.com/web-axag/docs' },
+            { label: 'GitHub (SDK)', href: 'https://github.com/web-axag/sdk' },
+            { label: 'CLI Documentation', href: 'https://cli.axag.org' },
+            { label: 'Discussions', href: 'https://github.com/web-axag/docs/discussions' },
           ],
         },
         {

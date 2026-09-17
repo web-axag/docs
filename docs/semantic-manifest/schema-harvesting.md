@@ -81,3 +81,10 @@ See [Bind Zod or OpenAPI Schemas](/docs/tutorials/bind-schemas).
 | AXAG-LINT-032 | A harvested parameter has no label or description |
 
 To turn harvesting off, run `axag scan … --no-harvest`.
+
+## Where Bindings Are Resolved
+
+Loading a Zod module or an OpenAPI document is work the bundler plugin doesn't do: `axag-schema` is resolved by the CLI — `axag generate` and `axag scan` — which ships `@web-axag/schema-zod` and `@web-axag/schema-openapi` as dependencies.
+
+A build that uses [`@web-axag/compiler`](/docs/tool-generation/build-time-compilation) alone will harvest the markup and read declared parameters, but leaves `axag-schema` unresolved. Where you want bound parameters in the manifest, generate it with the CLI in CI rather than from the bundler, or declare the parameters on the annotation.
+

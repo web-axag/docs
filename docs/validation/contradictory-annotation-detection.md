@@ -22,19 +22,19 @@ None of these outcomes are acceptable in production. **Contradictions MUST be de
 
 ### 1. Risk Level vs Action Type
 
-A `read` operation annotated with `high` risk:
+A `read` operation annotated with `critical` risk:
 
-```html title="❌ Contradictory — read with high risk"
-<!-- ❌ Contradictory: reads are inherently safe -->
+```html title="❌ Contradictory — read with critical risk"
+<!-- ❌ Contradictory: reads don't destroy anything -->
 <button
   axag-intent="product.search"
   axag-entity="product"
   axag-action-type="read"
-  axag-risk-level="high"
+  axag-risk-level="critical"
 >Search</button>
 ```
 
-**Rule:** `AXAG-LINT-010` — Read operations **SHOULD NOT** have risk level above `low`.
+**Rule:** `AXAG-LINT-013` (error) — a `read` operation **MUST NOT** be `critical`. `AXAG-LINT-025` (info) also notes a read above `low`, which is sometimes right for a sensitive export.
 
 **Fix:**
 ```html title="✅ Fix — risk level matches action type"
@@ -46,45 +46,10 @@ A `read` operation annotated with `high` risk:
 >Search</button>
 ```
 
-### 2. Idempotent vs Side Effects
-
-An operation declared idempotent but with non-idempotent side effects:
-
-```html title="❌ Contradictory — idempotent with non-idempotent side effects"
-<!-- ❌ Contradictory: email_sent is not idempotent -->
-<button
-  axag-intent="order.place"
-  axag-entity="order"
-  axag-action-type="write"
-  axag-idempotent="true"
-  axag-side-effects='["email_sent","inventory_deducted"]'
-  axag-risk-level="high"
->Place Order</button>
-```
-
-**Rule:** `AXAG-LINT-011` — Idempotent operations **MUST NOT** declare non-idempotent side effects.
-
-**Fix:** Either mark as non-idempotent or ensure side effects are truly idempotent (e.g., "email_sent" becomes "email_queued_idempotent").
-
-### 3. Confirmation Not Required on Destructive Actions
-
-```html title="❌ Contradictory — delete without confirmation"
-<!-- ❌ Contradictory: delete without confirmation -->
-<button
-  axag-intent="user.delete"
-  axag-entity="user"
-  axag-action-type="delete"
-  axag-risk-level="critical"
-  axag-confirmation-required="false"
->Delete User</button>
-```
-
-**Rule:** `AXAG-LINT-012` — Delete operations with risk level `high` or `critical` **MUST** require confirmation.
-
-### 4. Approval Without Roles
+### 2. Approval Without Roles
 
 ```html
-<!-- ❌ Contradictory: approval required but no roles specified -->
+<!-- ❌ Contradictory: approval required but nobody can give it -->
 <button
   axag-intent="expense.approve"
   axag-entity="expense"
@@ -94,33 +59,72 @@ An operation declared idempotent but with non-idempotent side effects:
 >Approve</button>
 ```
 
-**Rule:** `AXAG-LINT-013` — When `axag-approval-required="true"`, `axag-approval-roles` **MUST** be specified.
+**Rule:** `AXAG-LINT-012` (error) — when `axag-approval-required="true"`, `axag-approval-roles` **MUST** be specified.
 
-### 5. Preconditions Contradicting Action Type
+### 3. Preconditions Contradicting Action Type
 
 ```html
-<!-- ❌ Contradictory: create with "entity must exist" precondition -->
+<!-- ❌ Contradictory: create with "must exist" precondition -->
 <button
   axag-intent="product.create"
   axag-entity="product"
   axag-action-type="write"
+  axag-risk-level="low"
+  axag-idempotent="false"
   axag-preconditions='["product must exist"]'
 >Create Product</button>
 ```
 
-**Rule:** `AXAG-LINT-014` — Create operations **SHOULD NOT** require the target entity to already exist.
+**Rule:** `AXAG-LINT-014` (warning) — a `write` whose preconditions say the entity "must exist" or "already exists" is either an update, or the precondition is wrong.
+
+### 4. Navigation With Side Effects
+
+```html
+<!-- ❌ Contradictory: navigation that changes state -->
+<a
+  href="/logout"
+  axag-intent="session.end"
+  axag-entity="session"
+  axag-action-type="navigate"
+  axag-side-effects='["session_destroyed"]'
+>Log out</a>
+```
+
+**Rule:** `AXAG-LINT-015` (warning) — `navigate` means changing the view. An action with side effects is a `write` or a `delete`.
+
+### 5. Tenant Roles Outside Tenant Scope
+
+```html
+<!-- ❌ Contradictory: a tenant_ role approving a global action -->
+<button
+  axag-intent="billing.adjust"
+  axag-entity="billing"
+  axag-action-type="write"
+  axag-risk-level="high"
+  axag-idempotent="false"
+  axag-confirmation-required="true"
+  axag-scope="global"
+  axag-approval-required="true"
+  axag-approval-roles='["tenant_admin"]'
+>Adjust Billing</button>
+```
+
+**Rule:** `AXAG-LINT-016` (warning) — a `tenant_`-prefixed approval role with a non-tenant scope means one of the two is wrong.
+
+### Also Worth Checking by Hand
+
+Some contradictions no rule can see. An operation declared `axag-idempotent="true"` whose side effects include `email_sent` is one: repeating it sends another email, so either the declaration or the side effect is wrong. `AXAG-LINT-017` only catches the opposite case — a non-idempotent mutation that declares no side effects at all.
 
 ## Detection Rules Summary
 
-| Rule | Contradiction | Severity |
-|------|--------------|----------|
-| `AXAG-LINT-010` | Read + high/critical risk | Warning |
-| `AXAG-LINT-011` | Idempotent + non-idempotent side effects | Error |
-| `AXAG-LINT-012` | Destructive + no confirmation (high/critical) | Error |
-| `AXAG-LINT-013` | Approval required + no approval roles | Error |
-| `AXAG-LINT-014` | Create + "must exist" precondition | Warning |
+| Rule | Contradiction | Default severity |
+|------|--------------|------------------|
+| `AXAG-LINT-012` | Approval required + no approval roles | Error |
+| `AXAG-LINT-013` | Read + critical risk | Error |
+| `AXAG-LINT-014` | Write + "must exist" precondition | Warning |
 | `AXAG-LINT-015` | Navigate + side effects declared | Warning |
-| `AXAG-LINT-016` | Non-tenant scope + tenant-only roles | Error |
+| `AXAG-LINT-016` | Tenant-only approval roles + non-tenant scope | Warning |
+| `AXAG-LINT-025` | Read + risk above `low` | Info |
 
 ## CI Integration
 

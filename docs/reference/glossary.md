@@ -13,7 +13,7 @@ Canonical definitions of terms used throughout the AXAG specification.
 
 **Action** — A discrete operation that an agent can perform on an entity. Defined by an intent, entity, and action type.
 
-**Action Type** — Classification of an action as `read`, `write`, or `delete`.
+**Action Type** — Classification of an action as `read`, `write`, `delete` or `navigate`.
 
 **Affordance** — A property of an interface element that communicates what actions are possible. In AXAG, affordances are declared via `axag-*` attributes rather than visual cues.
 
@@ -31,7 +31,7 @@ Canonical definitions of terms used throughout the AXAG specification.
 
 **Confirmation** — A gate that requires explicit user acknowledgment before a high-risk action executes.
 
-**Conformance Level** — A tier of AXAG compliance: Basic (required fields), Intermediate (parameters + safety), Full (all metadata).
+**Conformance Level** — A tier of AXAG compliance: `basic` (required fields), `intermediate` (risk and safety metadata), `full` (scope and declared conditions as well). The legacy names `A`, `AA`, `AAA` map onto these.
 
 **Constraint** — A validation rule on a parameter (type, range, enum, format, pattern).
 
@@ -47,13 +47,21 @@ Canonical definitions of terms used throughout the AXAG specification.
 
 **Idempotent** — An operation that produces the same result when called multiple times with the same parameters.
 
-**Intent** — The canonical identifier for an action, following the `entity.action` pattern (e.g., `product.search`).
+**Intent** — The canonical identifier for an action, following the `entity.verb` pattern in snake_case (e.g., `product.search`, `cart.add_item`).
+
+**Inheritance** — A container's `axag-scope`, `axag-tenant-boundary` and `axag-required-roles` apply to the annotations inside it. See [Context Inheritance](/docs/specification/context-inheritance).
 
 ## M
 
 **Manifest** — See Semantic Manifest.
 
+**Macro** — The `axag` shorthand attribute that packs identity and safety fields into one string, e.g. `axag="write:user.deactivate!critical?approval"`. Expands to the longhand attributes.
+
 **MCP** — Model Context Protocol. A standard for AI agent tool integration. AXAG-generated tools target MCP format.
+
+## H
+
+**Harvesting** — Reading parameters from the markup — a form's controls, their names, labels, types and HTML constraints — rather than declaring them on the annotation. See [Schema Harvesting](/docs/semantic-manifest/schema-harvesting).
 
 ## P
 
@@ -84,3 +92,7 @@ Canonical definitions of terms used throughout the AXAG specification.
 **Tool** — A callable function generated from a Semantic Manifest action, consumable by AI agents via MCP or similar protocols.
 
 **Tool Generation** — The process of converting Semantic Manifest actions into MCP-compatible tool definitions.
+
+## W
+
+**WebMCP** — The browser API (`document.modelContext`) through which a page registers tools with an agent running in the browser. See [Agent Runtime](/docs/frameworks/runtime).

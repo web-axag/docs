@@ -44,7 +44,7 @@ Before annotating, answer these questions:
 | What type of action is this? | Read (non-mutating) |
 | What parameters are required? | query |
 | What parameters are optional? | category, price_min, price_max |
-| What scope does this operate in? | Catalog (public) |
+| What scope does this operate in? | Public — no sign-in needed |
 | What is the risk level? | None |
 | Is it idempotent? | Yes |
 
@@ -115,7 +115,7 @@ Check your annotation against these rules:
 
 The annotation now declares a contract:
 
-> "This button performs a **product search** (a **read** operation on the **product** entity) that **requires** a `query` parameter, **optionally** accepts `category`, `price_min`, and `price_max`, operates within the **catalog** scope, has **no risk**, and is **idempotent**."
+> "This button performs a **product search** (a **read** operation on the **product** entity) that **requires** a `query` parameter, **optionally** accepts `category`, `price_min`, and `price_max`, is **public**, has **no risk**, and is **idempotent**."
 
 An agent reading this contract can:
 1. Discover the operation without parsing the DOM

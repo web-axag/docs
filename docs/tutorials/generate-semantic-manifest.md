@@ -16,7 +16,7 @@ This tutorial walks through generating an AXAG Semantic Manifest from annotated 
 ## Step 1: Install the CLI
 
 ```bash title="Install AXAG CLI"
-npm install -D @web-axag/axag-cli
+npm install -D @web-axag/cli
 ```
 
 ## Step 2: Scan Source Files
@@ -37,7 +37,7 @@ The scanner:
 {
   "version": "1.1.0",
   "generated_at": "2026-09-14T10:30:00.000Z",
-  "source": { "paths": ["/app/src"], "tool": "axag-cli", "tool_version": "1.0.2" },
+  "source": { "paths": ["/app/src"], "tool": "@web-axag/cli", "tool_version": "1.1.0" },
   "conformance": "intermediate",
   "actions": [
     {
@@ -71,10 +71,10 @@ Any `AXAG-CORE-*` warnings (invalid enum values, invalid JSON arrays, duplicate 
 
 ## Step 5: Or generate it from your bundler
 
-An app with a bundler doesn't need a separate scan step. [`@axag/compiler`](/docs/tool-generation/build-time-compilation) reads the same sources on every build and writes the manifest into the output:
+An app with a bundler doesn't need a separate scan step. [`@web-axag/compiler`](/docs/tool-generation/build-time-compilation) reads the same sources on every build and writes the manifest into the output:
 
 ```ts title="vite.config.ts"
-import axag from '@axag/compiler/vite';
+import axag from '@web-axag/compiler/vite';
 export default { plugins: [axag()] };
 ```
 

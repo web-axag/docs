@@ -29,6 +29,7 @@ const sidebars: SidebarsConfig = {
         'getting-started/first-generated-tool',
         'getting-started/first-end-to-end-agent-action',
         'getting-started/implementation-prerequisites',
+        'getting-started/sdk',
       ],
     },
 

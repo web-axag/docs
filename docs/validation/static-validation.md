@@ -22,36 +22,39 @@ Static validation checks AXAG annotations at build time — before the page is s
 - `axag-confirmation-required="true"` is set when `axag-risk-level` is `high` or `critical`
 - `axag-approval-required="true"` has a corresponding `axag-approval-roles`
 - `axag-idempotent` is declared for all write/delete operations
-- `axag-scope` is declared for tenant-sensitive operations
+- `axag-scope` is declared for delete operations and for actions with role requirements
+- Tenant-scoped actions don't take the tenant as a parameter
 
 ### Cross-Reference Validation
-- All intents referenced in annotations exist in the Semantic Manifest
-- Parameter names in annotations match the manifest parameter definitions
-- Entity names are consistent between annotations and manifest
+- With `--manifest`, every intent in the source must exist in that manifest (AXAG-LINT-010) — useful when the manifest is reviewed and committed separately from the code
+
+When the manifest is generated from the same source on every build, as `@web-axag/compiler` does, the two can't drift and this check has nothing to find.
 
 ## Validation Tool Example
 
 ```bash title="Static validation output"
-# Run static validation
 npx axag-lint src --manifest axag-manifest.json
-
-# Output
-✓ 47 annotations found
-✓ All structural checks passed
-✓ All semantic checks passed
-✗ 2 cross-reference warnings:
-  - src/components/Cart.tsx:42 — intent "cart.remove_item" not in manifest
-  - src/pages/Admin.tsx:108 — parameter "user_role" not declared in manifest
 ```
+
+```text
+src/components/Cart.html
+  12:5  warning  axag-action-type="delete" should declare axag-idempotent  AXAG-LINT-007
+  12:5  warning  Intent "cart.remove_item" not found in manifest  AXAG-LINT-010
+  12:5  warning  Delete action should declare axag-scope to indicate blast radius  AXAG-LINT-021
+
+✗ 3 warnings in 1 file
+```
+
+Findings are grouped by file, with line and column, severity, message and rule ID. The exit code is non-zero when there are errors.
 
 ## Integration with Build Tools
 
-`@axag/compiler` reads annotations during the build and fails it on error diagnostics, so a broken annotation never reaches a deploy. See [Build-Time Compilation](/docs/tool-generation/build-time-compilation).
+`@web-axag/compiler` reads annotations during the build and fails it on error diagnostics, so a broken annotation never reaches a deploy. See [Build-Time Compilation](/docs/tool-generation/build-time-compilation).
 
 ### Vite
 ```typescript title="vite.config.ts"
 import { defineConfig } from 'vite';
-import axag from '@axag/compiler/vite';
+import axag from '@web-axag/compiler/vite';
 
 export default defineConfig({
   plugins: [axag({ failOnError: true })],
@@ -60,18 +63,18 @@ export default defineConfig({
 
 ### webpack
 ```javascript title="webpack.config.js"
-const axag = require('@axag/compiler/webpack').default;
+const axag = require('@web-axag/compiler/webpack').default;
 
 module.exports = {
   plugins: [axag({ failOnError: true })],
 };
 ```
 
-Rollup, Rspack and esbuild import from `@axag/compiler/rollup`, `/rspack` and `/esbuild`.
+Rollup, Rspack and esbuild import from `@web-axag/compiler/rollup`, `/rspack` and `/esbuild`.
 
 ## Lint Rules
 
-`axag-lint` ships 35 rules, grouped by what they protect:
+`axag-lint` ships 37 rules, grouped by what they protect:
 
 | Rules | Cover |
 |-------|-------|
@@ -86,8 +89,9 @@ Rollup, Rspack and esbuild import from `@axag/compiler/rollup`, `/rspack` and `/
 | 027–028 | Macro syntax and macro/longhand conflicts |
 | 029–032 | Harvesting: unnamed controls, schema drift, accessible names, labels |
 | 033 | Annotations that exist only at runtime |
+| 036–037 | Server enforcement: tenant identifiers exposed as parameters, high-risk actions no server enforces |
 
-Each has a default severity you can change per project. See [CI/CD Linting](/docs/validation/ci-linting) for the configuration file, and the [axag-lint README](https://www.npmjs.com/package/@web-axag/axag-lint) for the full list.
+Each has a default severity you can change per project. See [CI/CD Linting](/docs/validation/ci-linting) for the configuration file, and the [Error Codes Reference](/docs/reference/error-codes#validation-error-codes) for every rule and its default severity.
 
 ## Project-Specific Severities
 

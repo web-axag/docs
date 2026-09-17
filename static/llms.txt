@@ -26,6 +26,7 @@ Machine-readable manifest schema: https://axag.org/schema/v1.1/axag-manifest.sch
 - [Your First Generated Tool](https://axag.org/docs/getting-started/first-generated-tool): Generate your first MCP tool definition from a Semantic Manifest.
 - [First End-to-End Agent Action](https://axag.org/docs/getting-started/first-end-to-end-agent-action): Walk through a complete agent interaction powered by AXAG.
 - [Implementation Prerequisites](https://axag.org/docs/getting-started/implementation-prerequisites): What you need before implementing AXAG in your product.
+- [The AXAG SDK](https://axag.org/docs/getting-started/sdk): The thirteen packages that read, compile, lint, run and enforce AXAG annotations — and which ones you need.
 
 ## Core Concepts
 

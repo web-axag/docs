@@ -9,7 +9,7 @@
   "scripts": {
     "docusaurus": "docusaurus",
     "start": "docusaurus start",
-    "build": "npm run generate:llms && docusaurus build",
+    "build": "npm run generate:llms && npm run generate:stats && docusaurus build",
     "swizzle": "docusaurus swizzle",
     "deploy": "docusaurus deploy",
     "clear": "docusaurus clear",
@@ -22,7 +22,9 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,css,md,mdx}\" \"docs/**/*.{md,mdx}\"",
     "generate:llms": "node scripts/generate-llms-txt.mjs",
     "validate:axag": "node scripts/validate-axag-examples.mjs",
-    "test": "jest"
+    "test": "jest",
+    "generate:stats": "node scripts/generate-site-stats.mjs",
+    "audit:docs": "node scripts/audit-docs.mjs"
   },
   "dependencies": {
     "@docusaurus/core": "^3.6.0",

@@ -18,8 +18,10 @@ A **description** tells you about something. A **contract** binds you to somethi
 When AXAG declares `axag-preconditions='["cart_validated"]'`, this is not informational — it is contractual. It means:
 - The operation MUST NOT be invoked unless `cart_validated` is true
 - The manifest MUST include this precondition
-- The tool definition MUST surface this constraint
-- The agent runtime MUST validate this before execution
+- The tool definition MUST surface this constraint, so the agent can plan around it
+- The operation MUST refuse a call that breaks it, with `AXAG_PRECONDITION_FAILED`
+
+Preconditions are written for people and agents to reason about, not evaluated by a machine: nothing checks `cart_validated` for you. The refusal is what makes the contract binding, and it belongs in the handler or API that performs the operation.
 
 ## Contract Components
 

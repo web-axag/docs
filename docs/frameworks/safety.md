@@ -18,7 +18,7 @@ An agent running in the page holds the page's credentials. It can skip the dialo
 ## In the page
 
 ```ts
-import { createEnforcers, registerManifest } from '@axag/webmcp';
+import { createEnforcers, registerManifest } from '@web-axag/webmcp';
 
 const safety = createEnforcers({
   confirm: { from: 'high', endpoint: '/axag/confirm' },
@@ -40,7 +40,7 @@ registerManifest(tools, { signal: route.signal, handlers, ...safety });
 What the enforcers add travels in a reserved `_axag` entry beside the agent's parameters, so a handler can forward it:
 
 ```ts
-import { axagHeaders, withoutEnvelope } from '@axag/webmcp';
+import { axagHeaders, withoutEnvelope } from '@web-axag/webmcp';
 
 const handler = input =>
   fetch('/api/users/deactivate', {
@@ -53,8 +53,8 @@ const handler = input =>
 ## On the server
 
 ```ts
-import { createEnforcer } from '@axag/server';
-import { axagGuard, axagConfirmRoute } from '@axag/server/express';
+import { createEnforcer } from '@web-axag/server';
+import { axagGuard, axagConfirmRoute } from '@web-axag/server/express';
 import manifest from './public/.well-known/axag-manifest.json' with { type: 'json' };
 
 const enforcer = createEnforcer({

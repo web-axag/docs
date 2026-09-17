@@ -9,6 +9,7 @@ slug: /validation/ci-linting
 
 Integrating AXAG validation into your CI/CD pipeline ensures that annotation errors are caught before deployment. This page shows how to set up automated linting with GitHub Actions, GitLab CI, and other platforms.
 
+
 ## GitHub Actions Workflow
 
 ```yaml title=".github/workflows/axag-validation.yml" showLineNumbers
@@ -93,8 +94,9 @@ Each rule takes `"error"`, `"warning"`, `"info"` or `"off"`. Run `npx axag-lint 
 | 027–028 | Macro syntax and macro/longhand conflicts |
 | 029–032 | Harvesting: unnamed controls, schema drift, accessible names, labels |
 | 033 | Annotations that only exist at runtime |
+| 036–037 | Server enforcement: tenant identifiers exposed as parameters, high-risk actions no server enforces |
 
-The full list with default severities is in the [axag-lint README](https://www.npmjs.com/package/@web-axag/axag-lint).
+The full list with default severities is in the [Error Codes Reference](/docs/reference/error-codes#validation-error-codes).
 
 ## Pre-Commit Hook
 
@@ -139,9 +141,9 @@ jobs:
         with: { fetch-depth: 0 }
 
       - name: Generate the manifest
-        run: npx --yes @web-axag/axag-cli generate src --manifest axag-manifest.json --validate
+        run: npx --yes @web-axag/cli generate src --manifest axag-manifest.json --validate
 
-      - uses: axag-sdk/axag-sdk/.github/actions/axag-lint@main
+      - uses: web-axag/sdk/.github/actions/axag-lint@main
         with:
           path: src
           manifest: axag-manifest.json

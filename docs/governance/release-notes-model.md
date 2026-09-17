@@ -12,9 +12,9 @@ Every AXAG specification release includes structured release notes that communic
 ## Release Note Structure
 
 ```markdown
-# AXAG v0.2.0 Release Notes
+# AXAG v1.1.0 Release Notes
 
-**Release Date**: 2024-07-01
+**Release Date**: 2026-09-17
 **Status**: Stable
 **Previous Version**: 1.0.0
 
@@ -66,27 +66,30 @@ What CI rules changed, new validation requirements, infrastructure changes.
 
 ## Changelog
 
-The project maintains a `CHANGELOG.md` following [Keep a Changelog](https://keepachangelog.com/) format:
+Each release SHOULD also be recorded in a `CHANGELOG.md` following the [Keep a Changelog](https://keepachangelog.com/) format. For 1.1.0 that entry reads:
 
 ```markdown
 # Changelog
 
 ## [Unreleased]
 
-## [0.2.0] - 2024-07-01
+## [1.1.0] - 2026-09-17
 ### Added
-- `axag-tenant-boundary` attribute for multi-tenant scoping
-- New lint rule AXAG-LINT-013 for tenant boundary validation
+- `axag` macro attribute (proposed pattern)
+- Parameters harvested from form controls, or bound from Zod and OpenAPI schemas
+- Manifest fields `tenant_boundary`, `required_roles`, `async` and `dynamic_actions`
+- Server-side enforcement requirement for actions at `high` risk and above
+- Lint rules AXAG-LINT-027 to AXAG-LINT-037
 ### Changed
-- `axag-side-effects` now supports structured array syntax
+- Conformance levels are named `basic`, `intermediate`, `full`
 ### Deprecated
-- Plain string `axag-side-effects` (use structured format)
+- Conformance names `A`, `AA`, `AAA` (still accepted; removal in 2.0.0)
 ### Fixed
-- Schema validation for nested parameter objects
+- Vocabulary pages listed action types and scopes the schema never accepted
 
-## [1.0.0] - 2024-01-15
+## [1.0.0]
 ### Added
-- Initial specification draft
+- Initial specification
 - Core annotation attributes
 - Semantic Manifest schema
 - Tool generation mapping rules

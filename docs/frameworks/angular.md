@@ -9,13 +9,13 @@ description: Register agent actions for as long as the element is in the view.
 # Angular
 
 ```bash
-npm install @axag/angular
+npm install @web-axag/angular
 ```
 
 ```ts
 import { Component } from '@angular/core';
-import { AxagDirective } from '@axag/angular';
-import { defineAction } from '@axag/core';
+import { AxagDirective } from '@web-axag/angular';
+import { defineAction } from '@web-axag/core';
 
 @Component({
   standalone: true,
@@ -54,4 +54,4 @@ export class UserRowComponent {
 
 ## Templates are read at build time too
 
-[`@axag/compiler`](/docs/tool-generation/build-time-compilation) reads `*.component.html` templates, so a static `axag="write:user.deactivate!critical"` appears in the manifest. A bound `[axag]="spec"` is known only at runtime and is listed under `dynamic_actions`.
+[`@web-axag/compiler`](/docs/tool-generation/build-time-compilation) reads `*.component.html` templates, so a static `axag="write:user.deactivate!critical"` appears in the manifest. A bound `[axag]="spec"` is known only at runtime and is listed under `dynamic_actions`.

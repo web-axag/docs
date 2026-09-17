@@ -173,6 +173,8 @@ A generated tool surface following the Model Context Protocol (MCP) specificatio
 
 The planning and execution layer. It reads the tool registry, selects appropriate tools, validates constraints, and performs operations — all without scraping or visual inference.
 
+In a browser, tools reach the agent through WebMCP, registered for as long as their UI is on screen. The server behind them enforces what the contract declared, so an agent can't skip a confirmation or cross a tenant boundary by calling the API directly. See [The SDK](/docs/getting-started/sdk).
+
 ## A Concrete Example
 
 Consider a search button on an e-commerce product page.
@@ -222,9 +224,19 @@ Now the agent knows:
 - ✅ It is a read (non-mutating) operation
 - ✅ It requires a `query` parameter
 - ✅ It optionally accepts `category`, `price_min`, `price_max`, `sort_by`
-- ✅ It operates within the `catalog` scope
+- ✅ It is public — no sign-in needed
 - ✅ It has no risk
 - ✅ It is idempotent — safe to retry
+
+The same contract fits in one attribute with the [macro shorthand](/docs/specification/macro-syntax), and the parameters can come from the search form itself rather than being listed by hand — see [Schema Harvesting](/docs/semantic-manifest/schema-harvesting):
+
+```html
+<form axag="read:product.search!none?idempotent&scope=public">
+  <label for="q">Search products</label>
+  <input id="q" name="query" required>
+  <button type="submit">Search</button>
+</form>
+```
 
 ## What AXAG Is Not
 
@@ -249,8 +261,8 @@ Now the agent knows:
 ## Who Should Use AXAG?
 
 - **Frontend engineers** — Annotate UI elements with semantic contracts
-- **Platform teams** — Generate manifests and tool registries from annotations
-- **Agent runtime builders** — Consume tool registries for deterministic interaction
+- **Platform teams** — Generate manifests and tools on every build with `@web-axag/compiler`, and enforce safety with `@web-axag/server`
+- **Agent runtime builders** — Consume tools through WebMCP, or through the MCP bridge from outside the browser
 - **Product architects** — Design agent-ready interface semantics
 - **Standards committees** — Govern annotation vocabulary and conformance levels
 
@@ -567,7 +579,7 @@ AXAG is designed for multiple audiences across the software development lifecycl
 Annotate UI components with semantic contracts. You add `axag-*` attributes to buttons, forms, tables, and navigation elements to declare their intent, parameters, and constraints.
 
 ## Platform Teams
-Build the tooling that generates Semantic Manifests from annotations, produces MCP tool registries, and validates conformance across the product surface.
+Wire up manifest generation and validation across the product surface — [`@web-axag/compiler`](/docs/tool-generation/build-time-compilation) in the build, [`axag-lint`](/docs/validation/ci-linting) in CI — or build your own tooling against the [manifest schema](/docs/semantic-manifest/manifest-schema).
 
 ## Agent Runtime Builders
 Consume tool registries generated from AXAG manifests. Your agents discover operations, validate parameters, and execute actions through the semantic contract rather than through scraping.
@@ -582,7 +594,7 @@ Align AXAG semantic contracts with existing API contracts (REST, GraphQL, gRPC).
 Govern the AXAG vocabulary for your organization. Define conformance levels, review processes, and adoption roadmaps.
 
 ## Security and Compliance Teams
-Review risk classifications, approval requirements, and safety boundaries declared in AXAG annotations. Validate that high-risk operations are appropriately gated.
+Review risk classifications, approval requirements, and safety boundaries declared in AXAG annotations. Validate that high-risk operations are gated where it counts — [on the server](/docs/frameworks/safety), not only in the page.
 
 ## Next Steps
 
@@ -632,6 +644,10 @@ Tool definitions generated from the manifest following the Model Context Protoco
 
 ### Layer 5: Agent Runtime
 The agent reads the tool registry, plans which tools to invoke, validates parameters against constraints, and executes operations.
+
+An agent running in the browser skips the fetch: [`@web-axag/webmcp`](/docs/frameworks/runtime) registers each action with `document.modelContext` while its element is on screen, so the agent's tool list is layer 4, live. The manifest is how agents outside the page — crawlers, server-side agents, registries — see the same operations.
+
+There is a sixth thing, and it isn't a layer: the [server](/docs/frameworks/safety). Everything above declares what the rules are; only your API can refuse a call that breaks them.
 
 ## The Key Insight
 
@@ -724,13 +740,13 @@ Here is the complete transformation path for a single UI element:
 
 ### Step 5: Agent Invokes the Tool
 The agent runtime:
-1. Discovers `checkout_begin` in the tool registry
+1. Discovers `checkout_begin` — in the tool registry, or registered live in the page
 2. Validates that `cart_id`, `payment_method_id`, and `shipping_address_id` are provided
-3. Checks that `cart_validated` and `inventory_reserved` preconditions are met
+3. Reasons about the `cart_validated` and `inventory_reserved` preconditions, and calls what satisfies them first
 4. Notes that this is a high-risk mutating operation requiring confirmation
-5. Requests user confirmation
-6. Executes the operation
-7. Verifies that `checkout_session_created` postcondition is satisfied
+5. Asks the person to confirm, and carries the confirmation token into the call
+6. Executes the operation — which your server accepts only because the token, roles and tenant check out
+7. Checks the result against the `checkout_session_created` postcondition
 
 ## Next Steps
 
@@ -774,7 +790,7 @@ Before annotating, answer these questions:
 | What type of action is this? | Read (non-mutating) |
 | What parameters are required? | query |
 | What parameters are optional? | category, price_min, price_max |
-| What scope does this operate in? | Catalog (public) |
+| What scope does this operate in? | Public — no sign-in needed |
 | What is the risk level? | None |
 | Is it idempotent? | Yes |
 
@@ -843,7 +859,7 @@ Check your annotation against these rules:
 
 The annotation now declares a contract:
 
-> "This button performs a **product search** (a **read** operation on the **product** entity) that **requires** a `query` parameter, **optionally** accepts `category`, `price_min`, and `price_max`, operates within the **catalog** scope, has **no risk**, and is **idempotent**."
+> "This button performs a **product search** (a **read** operation on the **product** entity) that **requires** a `query` parameter, **optionally** accepts `category`, `price_min`, and `price_max`, is **public**, has **no risk**, and is **idempotent**."
 
 An agent reading this contract can:
 1. Discover the operation without parsing the DOM
@@ -899,8 +915,8 @@ The generated Semantic Manifest entry is:
   "generated_at": "2026-09-14T00:00:00.000Z",
   "source": {
     "paths": ["src"],
-    "tool": "axag-cli",
-    "tool_version": "1.0.2"
+    "tool": "@web-axag/cli",
+    "tool_version": "1.1.0"
   },
   "conformance": "intermediate",
   "actions": [
@@ -950,11 +966,11 @@ Parameters listed by name (`'["query"]'`) are typed as `string`. To declare type
 
 Manifests can be generated through:
 
-1. **Build-time extraction** — A build plugin scans annotated HTML/JSX and outputs manifest JSON
-2. **Runtime extraction** — A client-side script reads `axag-*` attributes from the live DOM
-3. **Static analysis** — A linter or analyzer processes source files without rendering
+1. **At build time** — [`@web-axag/compiler`](/docs/tool-generation/build-time-compilation), a plugin for Vite, webpack, Rollup, Rspack and esbuild, writes the manifest and tools into your build output
+2. **In CI** — `npx axag generate src --manifest axag-manifest.json --validate` runs the same compiler without a bundler
+3. **In the page** — `registerDocument()` from [`@web-axag/webmcp`](/docs/frameworks/runtime) reads annotations from the live DOM, for pages with no build step
 
-The recommended approach is **build-time extraction** for production deployments.
+The recommended approach is **build-time**: nothing that reads annotations ships to the browser, and the manifest is identical whichever of the three produced it.
 
 ## Next Steps
 
@@ -966,6 +982,8 @@ The recommended approach is **build-time extraction** for production deployments
 Source: https://axag.org/docs/getting-started/first-generated-tool
 
 MCP tool definitions are generated from the Semantic Manifest. Each manifest operation becomes a callable tool that agent runtimes can discover and invoke.
+
+You don't write them. [`@web-axag/compiler`](/docs/tool-generation/build-time-compilation) emits them on every build, or run `npx axag generate src --tools tools/tool-registry.json` in CI.
 
 ## From Manifest to Tool
 
@@ -1096,6 +1114,17 @@ The agent invokes `product_search` with:
 
 The operation returns matching products. The agent presents them to the user with relevant details.
 
+## How the Tool Reached the Agent
+
+Nothing above was hand-written for the agent. The tool came from the annotation, by one of two routes:
+
+1. **At build time**, [`@web-axag/compiler`](/docs/tool-generation/build-time-compilation) read the annotated search form and emitted the tool alongside the manifest.
+2. **In the page**, [`@web-axag/webmcp`](/docs/frameworks/runtime) registered it with the browser's `document.modelContext` while the search form was on screen — and unregistered it when the person navigated away.
+
+An agent running in the browser sees it there. An agent outside the browser — a desktop client — reaches the same tool through [`@web-axag/bridge`](/docs/frameworks/bridge).
+
+When the agent called `product_search`, the runtime filled the form with those parameters and pressed Search, exactly as a person would. An app can pass its own handler instead, to call its API directly.
+
 ## What Made This Possible
 
 Without AXAG, the agent would need to:
@@ -1117,6 +1146,7 @@ With AXAG, the agent:
 ## Next Steps
 
 - [Implementation Prerequisites](/docs/getting-started/implementation-prerequisites)
+- [The SDK](/docs/getting-started/sdk)
 - [Core Concepts](/docs/concepts/agent-experience)
 - [Authoring Guide](/docs/authoring-guide/annotating-buttons)
 
@@ -1128,16 +1158,21 @@ Before implementing AXAG, ensure the following prerequisites are in place.
 
 ## Technical Prerequisites
 
-1. **Frontend framework** — Any modern framework (React, Vue, Angular, Svelte, plain HTML) is supported
-2. **Build toolchain** — A build process that can run extraction plugins (Webpack, Vite, Rollup, esbuild, or similar)
-3. **JSON processing** — Ability to generate and serve JSON manifest files
-4. **CI/CD pipeline** — For running validation and manifest generation on each build
+1. **Frontend framework** — Any. Annotations are HTML attributes; React, Vue and Angular also have [bindings](/docs/getting-started/sdk).
+2. **A way to produce the manifest** — a bundler that can run [`@web-axag/compiler`](/docs/tool-generation/build-time-compilation) (Vite, webpack, Rollup, Rspack, esbuild), or `axag generate` in CI for a site without one.
+3. **Somewhere to serve JSON** — the manifest belongs at `/.well-known/axag-manifest.json`.
+4. **CI/CD pipeline** — for `axag-lint` on each pull request.
+5. **Server-side enforcement** — for any action at `high` risk or above, a server that can check confirmation, approval and tenant scope, such as [`@web-axag/server`](/docs/frameworks/safety).
+
+:::note Getting the tools
+The SDK is on npm under the `@web-axag` scope — see [The SDK](/docs/getting-started/sdk#availability) for which package does what.
+:::
 
 ## Organizational Prerequisites
 
 1. **Vocabulary ownership** — Identify who owns the intent and entity vocabulary for your product
 2. **Governance model** — Define who reviews and approves changes to annotations
-3. **Agent consumer identification** — Know which agent runtimes will consume your semantic contracts
+3. **Agent consumer identification** — Know which agents will use your tools: one in the browser through WebMCP, or one outside it through the [bridge](/docs/frameworks/bridge)
 4. **Risk classification policy** — Define how your organization classifies operation risk levels
 
 ## Recommended Knowledge
@@ -1152,6 +1187,127 @@ Before implementing AXAG, ensure the following prerequisites are in place.
 - [Core Concepts](/docs/concepts/agent-experience)
 - [Authoring Guide](/docs/authoring-guide/annotating-buttons)
 - [Specification Overview](/docs/specification/overview)
+
+## The AXAG SDK
+
+Source: https://axag.org/docs/getting-started/sdk
+
+Annotations describe what a page can do. The SDK is what reads them, turns them into tools, registers those tools with an agent, and checks that the promises they make are kept.
+
+Source: [github.com/web-axag/sdk](https://github.com/web-axag/sdk)
+
+## Which packages you need
+
+| You want to… | Install |
+|--------------|---------|
+| Check annotations in CI | `@web-axag/lint` |
+| Generate a manifest without a bundler | `@web-axag/cli` |
+| Generate a manifest and tools on every build | `@web-axag/compiler` |
+| Register tools with an agent in the browser | `@web-axag/webmcp` |
+| …from React, Vue or Angular components | `@web-axag/react`, `@web-axag/vue` or `@web-axag/angular` |
+| Enforce confirmation, approval and tenant scope | `@web-axag/server` (plus `@web-axag/webmcp` in the page) |
+| Take parameters from a Zod schema or OpenAPI | `@web-axag/schema-zod` or `@web-axag/schema-openapi` |
+| Support browsers without WebMCP | `@web-axag/shim` |
+| Let a desktop agent reach a browser tab | `@web-axag/bridge` |
+| Run a one-off check or build, with no install | `npx axag-lint`, `npx axag` |
+
+`@web-axag/core` sits under all of them; you rarely install it directly.
+
+## The packages
+
+### Authoring and checking
+
+| Package | What it does |
+|---------|--------------|
+| [`@web-axag/core`](https://github.com/web-axag/sdk/tree/main/packages/core) | The shared model: vocabulary, macro parser, annotation reader, [parameter harvesting](/docs/semantic-manifest/schema-harvesting), manifest and tool generation. Every other package reads annotations through it, so they all agree. |
+| [`@web-axag/lint`](https://github.com/web-axag/sdk/tree/main/packages/lint) | 37 rules over HTML, JSX, TSX and Vue. SARIF for code scanning, baselines for existing codebases, and a [GitHub Action](/docs/validation/ci-linting). |
+| [`@web-axag/cli`](https://github.com/web-axag/sdk/tree/main/packages/cli) | `axag generate`, `axag validate`, `axag fmt` between [macro](/docs/specification/macro-syntax) and longhand, and `axag scan` to infer annotations for an unannotated site. |
+
+### Commands
+
+| Package | What it does |
+|---------|--------------|
+| [`axag`](https://www.npmjs.com/package/axag) | The `axag` command, unscoped so `npx axag …` works without an install. Depends on `@web-axag/cli` and runs its binary; it holds no logic of its own. |
+| [`axag-lint`](https://www.npmjs.com/package/axag-lint) | The `axag-lint` command, the same wrapper arrangement over `@web-axag/lint`. |
+
+Installing `@web-axag/cli` or `@web-axag/lint` as a dev dependency gives you the same commands — these two exist so the one-off `npx` form in this documentation works as written.
+
+### Building
+
+| Package | What it does |
+|---------|--------------|
+| [`@web-axag/compiler`](https://github.com/web-axag/sdk/tree/main/packages/compiler) | A plugin for Vite, Rollup, webpack, Rspack and esbuild. Emits the manifest and WebMCP tools on every build, reading HTML, JSX, Vue and Angular templates. See [Build-Time Compilation](/docs/tool-generation/build-time-compilation). |
+| [`@web-axag/schema-zod`](https://github.com/web-axag/sdk/tree/main/packages/schema-zod) | Uses a Zod 4 schema as an action's parameters. |
+| [`@web-axag/schema-openapi`](https://github.com/web-axag/sdk/tree/main/packages/schema-openapi) | Uses an OpenAPI 3.0/3.1 operation as an action's parameters. |
+
+### Running
+
+| Package | What it does |
+|---------|--------------|
+| [`@web-axag/webmcp`](https://github.com/web-axag/sdk/tree/main/packages/webmcp) | Registers actions as WebMCP tools for exactly as long as their UI is on screen, and ships the in-page [safety enforcers](/docs/frameworks/safety). See [Agent Runtime](/docs/frameworks/runtime). |
+| [`@web-axag/react`](https://github.com/web-axag/sdk/tree/main/packages/react) | `useAxag` and ``. See [React](/docs/frameworks/react). |
+| [`@web-axag/vue`](https://github.com/web-axag/sdk/tree/main/packages/vue) | `useAxag` and `v-axag`. See [Vue](/docs/frameworks/vue). |
+| [`@web-axag/angular`](https://github.com/web-axag/sdk/tree/main/packages/angular) | The `[axag]` directive. See [Angular](/docs/frameworks/angular). |
+
+### Enforcing and bridging
+
+| Package | What it does |
+|---------|--------------|
+| [`@web-axag/server`](https://github.com/web-axag/sdk/tree/main/packages/server) | Checks confirmation tokens, approval, roles and tenant boundaries on the server, where an agent can't skip them. See [Safety Enforcers](/docs/frameworks/safety). |
+| [`@web-axag/shim`](https://github.com/web-axag/sdk/tree/main/packages/shim) | A `document.modelContext` for browsers that don't have one. |
+| [`@web-axag/bridge`](https://github.com/web-axag/sdk/tree/main/packages/bridge) | `npx axag-bridge` relays a tab's tools to any MCP client. See [Shim & Bridge](/docs/frameworks/bridge). |
+
+## How they fit together
+
+```text
+ your markup / components
+        │
+        ├── axag-lint ─────────────── checks, in CI
+        │
+        ├── @web-axag/compiler ────────── manifest + tools, at build
+        │        (schema-zod, schema-openapi add parameters)
+        │
+        └── @web-axag/webmcp ──────────── registers tools, in the page
+                 │   (react / vue / angular bind them to components)
+                 │
+                 ├── document.modelContext ── the agent in the browser
+                 │        (@web-axag/shim where the browser has none)
+                 │
+                 └── @web-axag/bridge ─────────── agents outside the browser
+
+ the call reaches your API
+        └── @web-axag/server ──────────── enforces what the annotation declared
+```
+
+## Availability
+
+The thirteen `@web-axag` packages are published on npm at **1.1.0**, alongside the two unscoped commands `axag` and `axag-lint` at the same version. Every package name on this page is the name you install.
+
+```bash
+npm install -D @web-axag/lint @web-axag/cli
+npm install @web-axag/webmcp
+```
+
+The two command-line tools are also published under their bare command names, so they run without an install:
+
+```bash
+npx axag-lint src
+npx axag generate src --manifest axag-manifest.json
+```
+
+`axag` and `axag-lint` contain no logic — each one depends on `@web-axag/cli` or `@web-axag/lint` and runs its binary. Install the scoped package when you want the library too.
+
+:::note Renamed in 1.1
+`@web-axag/axag-cli` and `@web-axag/axag-lint` are the earlier names of `@web-axag/cli` and `@web-axag/lint`. They are deprecated and stop at their pre-1.1 versions; switch the dependency name to get 1.1.
+:::
+
+To work on the SDK itself, build it from source:
+
+```bash
+git clone https://github.com/web-axag/sdk.git
+cd axag-sdk
+pnpm install && pnpm build
+```
 
 
 # Core Concepts
@@ -1211,8 +1367,10 @@ A **description** tells you about something. A **contract** binds you to somethi
 When AXAG declares `axag-preconditions='["cart_validated"]'`, this is not informational — it is contractual. It means:
 - The operation MUST NOT be invoked unless `cart_validated` is true
 - The manifest MUST include this precondition
-- The tool definition MUST surface this constraint
-- The agent runtime MUST validate this before execution
+- The tool definition MUST surface this constraint, so the agent can plan around it
+- The operation MUST refuse a call that breaks it, with `AXAG_PRECONDITION_FAILED`
+
+Preconditions are written for people and agents to reason about, not evaluated by a machine: nothing checks `cart_validated` for you. The refusal is what makes the contract binding, and it belongs in the handler or API that performs the operation.
 
 ## Contract Components
 
@@ -1287,7 +1445,7 @@ In AX, affordances are **declared capabilities**. An AXAG-annotated element decl
 |------------------|---------------------|
 | A button shape suggests "clickable" | `axag-action-type="write"` declares "invocable operation" |
 | A text field suggests "typeable" | `axag-parameter-type="string"` declares "accepts text input" |
-| A dropdown suggests "selectable" | `axag-parameter-type="enum"` declares "accepts constrained value" |
+| A dropdown suggests "selectable" | `axag-parameter-enum='["draft","published"]'` declares "accepts one of these values" |
 
 ## Agent-Facing Affordances
 
@@ -1320,9 +1478,11 @@ Rules about individual parameter values:
 
 ### Relational Constraints
 Rules about relationships between parameters:
-- Mutual exclusion: `price_min` and `price_max` cannot be equal
+- Ordering: `price_min` must be less than `price_max`
 - Conditional requirement: `shipping_address_id` is required when `delivery_method` is "ship"
 - Dependency: `payment_method_id` requires `billing_address_id`
+
+These have no machine-readable form in AXAG 1.1. Write them as preconditions and in the description, and enforce them where the operation runs.
 
 ### Execution Constraints
 Rules about when the operation can execute:
@@ -1334,7 +1494,7 @@ Rules about when the operation can execute:
 
 Validation rules that exist only in client-side JavaScript are invisible to agents. If a form requires an email format but only validates on blur, an agent has no way to know this until submission fails.
 
-AXAG makes constraints part of the contract, enabling agents to construct valid inputs on the first attempt.
+AXAG makes constraints part of the contract, enabling agents to construct valid inputs on the first attempt. Value constraints reach the generated tool's input schema, so a host can often reject a bad value before the call is even made. See [Constraints](/docs/specification/constraints) for how each kind is declared.
 
 ## Next Steps
 
@@ -1398,13 +1558,16 @@ Source: https://axag.org/docs/concepts/context-and-scope
 
 | Scope | Description | Example |
 |-------|-------------|---------|
-| `global` | Accessible to all users | Public product search |
-| `catalog` | Scoped to a product catalog | Category-specific search |
-| `tenant` | Scoped to an organizational tenant | Multi-tenant SaaS operations |
-| `organization` | Scoped to an organization | Team-level settings |
-| `user` | Scoped to an individual user | Profile updates |
-| `session` | Scoped to an active session | Cart operations |
-| `customer` | Scoped to a customer account | Order history |
+| `public` | Available without authentication | Product search, help pages |
+| `user` | Affects only the signed-in user's own data | Profile updates, cart operations, order history |
+| `tenant` | Affects data shared across the user's organization | Multi-tenant SaaS operations, team settings |
+| `global` | Affects every tenant or the whole platform | Platform-wide configuration (rare, admin-only) |
+
+These four are the whole set. Narrower boundaries — a catalog, a session, a customer account — are expressed with `tenant` or `user` plus `axag-required-roles` and preconditions, not new scope values.
+
+:::note Changed in 1.1
+Earlier drafts of this page listed `catalog`, `organization`, `session` and `customer`. They were never accepted by the manifest schema or tooling.
+:::
 
 ## Why Scope Matters
 
@@ -1412,7 +1575,7 @@ An agent operating within a multi-tenant SaaS product must know that `tenant` sc
 
 ## Context Inheritance
 
-AXAG supports context inheritance — child elements can inherit scope from parent containers:
+A container can declare scope, tenant boundary and roles once for every annotation inside it:
 
 ```html
 <div axag-scope="tenant" axag-tenant-boundary="strict">
@@ -1422,6 +1585,8 @@ AXAG supports context inheritance — child elements can inherit scope from pare
   <!-- This button inherits scope="tenant" and tenant-boundary="strict" -->
 </div>
 ```
+
+Generators copy the inherited values into each action, so the manifest — and `@web-axag/server`, which enforces from it — sees `scope: "tenant"` on the button. See [Context Inheritance](/docs/specification/context-inheritance).
 
 ## Next Steps
 
@@ -1459,6 +1624,12 @@ This distinction prevents agents from assuming that discovery implies permission
 ```
 
 This tells the agent: you can see this operation exists, but you cannot execute it without admin approval.
+
+## How the Runtime Decides
+
+[`@web-axag/webmcp`](/docs/frameworks/runtime) computes operability from the page rather than from the attributes: an action whose element is disabled, hidden, `inert`, `aria-disabled` or detached is withdrawn from the agent's tool list, and offered again when the element comes back. So a button your UI disables is already not operable, without annotating it.
+
+The visibility attributes are declarations for readers and for your own code; the 1.1 manifest doesn't carry them. To keep an action off an agent's list deliberately, use the binding's `enabled` option in [React](/docs/frameworks/react), [Vue](/docs/frameworks/vue) or [Angular](/docs/frameworks/angular), and let the server refuse it too.
 
 ## Next Steps
 
@@ -1521,8 +1692,11 @@ Operations classified as `high` or `critical` risk SHOULD require explicit confi
 ```html
 <button
   axag-intent="account.delete"
+  axag-entity="account"
+  axag-action-type="delete"
   axag-risk-level="critical"
   axag-confirmation-required="true"
+  axag-idempotent="false"
   axag-confirmation-message="This will permanently delete the account and all associated data."
 >
   Delete Account
@@ -1536,7 +1710,11 @@ Some operations require multi-party approval before execution:
 ```html
 <button
   axag-intent="payment.refund"
+  axag-entity="payment"
+  axag-action-type="write"
   axag-risk-level="high"
+  axag-confirmation-required="true"
+  axag-idempotent="false"
   axag-approval-required="true"
   axag-approval-roles='["finance_manager"]'
   axag-approval-count="1"
@@ -1550,13 +1728,31 @@ Some operations require multi-party approval before execution:
 ```html
 <button
   axag-intent="email.send_bulk"
+  axag-entity="email"
+  axag-action-type="write"
   axag-risk-level="medium"
+  axag-confirmation-required="true"
+  axag-idempotent="false"
   axag-rate-limit="100/hour"
   axag-cooldown="60s"
 >
   Send Campaign
 </button>
 ```
+
+`axag-rate-limit`, `axag-cooldown` and `axag-approval-count` are not carried into the 1.1 manifest, so no AXAG tool enforces them — they tell a reader what your API already enforces.
+
+## Where Boundaries Are Enforced
+
+A declaration is not a control. An agent running in the page holds the session's credentials and can call your API directly, so risk, confirmation and approval must be enforced where the operation actually happens:
+
+| Layer | Enforces |
+|-------|----------|
+| The annotation | Nothing — it declares what the rules are |
+| The page ([`@web-axag/webmcp`](/docs/frameworks/safety)) | Asks the person to confirm, keeps tenant identifiers out of the agent's reach, audits calls |
+| Your server ([`@web-axag/server`](/docs/frameworks/safety)) | Confirmation tokens, approvals, roles, tenant boundaries — the checks that count |
+
+Actions at `high` risk and above MUST be enforced on the server; `axag-lint` flags those that aren't (AXAG-LINT-037).
 
 ## Why Safety Boundaries Are Non-Negotiable
 
@@ -1659,9 +1855,11 @@ Without role and tenant declarations:
 
 Source: https://axag.org/docs/specification/overview
 
-**Status:** v1.0.0  
+**Status:** v1.1.0  
 **Classification:** Normative  
-**Last Updated:** 2026-03-21
+**Last Updated:** 2026-09-17
+
+v1.1 adds, without breaking v1.0 manifests: the [`axag` macro](/docs/specification/macro-syntax) (proposed), parameters [harvested from forms or bound from Zod and OpenAPI](/docs/semantic-manifest/schema-harvesting), the `public` scope, `tenant_boundary`, `required_roles`, `async` and `dynamic_actions` in the manifest, and the requirement that high-risk actions are [enforced on the server](/docs/frameworks/safety).
 
 This document provides the normative specification for the Agent Experience Accessibility Guidelines (AXAG) standard. It defines the vocabulary, annotation primitives, required and optional fields, conformance levels, and validation rules that govern AXAG implementations.
 
@@ -1794,6 +1992,10 @@ The AXAG canonical vocabulary defines all reserved attribute names, their types,
 
 The prefix `axag-` is reserved for AXAG annotations. Implementations MUST NOT use this prefix for non-AXAG purposes.
 
+:::note Which attributes reach the manifest
+Most attributes become a field of the manifest action and of the generated tool. These do not, in 1.1: `axag-confirmation-message`, `axag-approval-count`, `axag-rate-limit`, `axag-cooldown`, `axag-role-escalation`, the visibility attributes, the workflow attributes and the versioning attributes. They are valid in markup and describe intent to a reader, but AXAG tooling doesn't carry or enforce them yet — enforce the behaviour they describe in your own code. The [manifest field reference](/docs/reference/manifest-fields) lists what is carried.
+:::
+
 ## Identity Attributes
 
 | Attribute | Type | Description |
@@ -1808,15 +2010,15 @@ The prefix `axag-` is reserved for AXAG annotations. Implementations MUST NOT us
 
 | Attribute | Type | Description |
 |-----------|------|-------------|
-| `axag-required-parameters` | `string[]` | JSON array of required parameter names |
-| `axag-optional-parameters` | `string[]` | JSON array of optional parameter names |
+| `axag-required-parameters` | `array` | JSON array of parameter names, or parameter objects (`{"name":"query","type":"string","maxLength":200}`) |
+| `axag-optional-parameters` | `array` | Same form, for optional parameters |
 | `axag-params-from` | `string` | `#id` of the form whose controls supply parameters |
 | `axag-schema` | `string` | Schema binding: `zod:<file>#<export>` or `openapi:[<file>#]<operationId>` |
 | `axag-parameter` | `string` | Parameter name (on input elements) |
-| `axag-parameter-type` | `string` | Parameter data type |
+| `axag-parameter-type` | `enum` | `string`, `number`, `integer`, `boolean`, `array`, `object` |
 | `axag-parameter-required` | `boolean` | Whether the parameter is required |
 | `axag-parameter-description` | `string` | Parameter description |
-| `axag-parameter-format` | `string` | Expected format (email, date, url, etc.) |
+| `axag-parameter-format` | `enum` | `email`, `url`, `date`, `datetime`, `uuid` |
 | `axag-parameter-enum` | `string[]` | Allowed values for enum parameters |
 | `axag-parameter-min` | `number` | Minimum value |
 | `axag-parameter-max` | `number` | Maximum value |
@@ -1978,7 +2180,7 @@ Source: https://axag.org/docs/specification/macro-syntax
 
 The `axag` attribute packs the most common annotation fields into one string. It expands to exactly the longhand `axag-*` attributes an author could have written, so validators, manifests and generated tools are identical whichever form a page uses.
 
-The macro is a Proposed Implementation Pattern in AXAG 1.1. Tooling (`@web-axag/axag-lint`, `axag-cli`, the VS Code extension) supports it; it becomes normative once the 1.1 review period closes.
+The macro is a Proposed Implementation Pattern in AXAG 1.1. All AXAG tooling — `axag-lint`, the `axag` CLI, `@web-axag/compiler`, the framework bindings and the in-page runtime — supports it; it becomes normative once the 1.1 review period closes.
 
 ```html title="Longhand"
 <button
@@ -2046,7 +2248,7 @@ Each key MAY appear at most once. List values become JSON string arrays: `roles=
 
 ## Converting existing pages
 
-`axag-cli` rewrites files in either direction without touching other attributes:
+The `axag` CLI rewrites files in either direction without touching other attributes:
 
 ```bash
 npx axag fmt src --to macro      # longhand → macro
@@ -2168,16 +2370,24 @@ Parameters are the inputs required and accepted by an AXAG-annotated operation.
 
 ## Declaration Methods
 
-### On the action element:
+### On the action element
+
+List names, or give a full definition where the type or constraints matter:
+
 ```html
 <button
   axag-intent="product.search"
-  axag-required-parameters='["query"]'
-  axag-optional-parameters='["category","price_min","price_max"]'
+  axag-entity="product"
+  axag-action-type="read"
+  axag-required-parameters='[{"name":"query","type":"string","minLength":1,"maxLength":200}]'
+  axag-optional-parameters='["category",{"name":"price_min","type":"number","min":0},{"name":"price_max","type":"number","min":0}]'
 >Search</button>
 ```
 
-### On individual input elements:
+A name on its own is a `string` unless a schema binding or a harvested control says otherwise.
+
+### On individual input elements
+
 ```html
 <input
   axag-parameter="query"
@@ -2189,15 +2399,25 @@ Parameters are the inputs required and accepted by an AXAG-annotated operation.
 />
 ```
 
+`axag-parameter-*` attributes override what would otherwise be read from the control's HTML (`type`, `required`, `min`, `maxlength`, …).
+
+### From the form, or a schema
+
+Often nothing needs declaring: controls inside an annotated form, or the form named by `axag-params-from`, are [harvested](/docs/semantic-manifest/schema-harvesting) as parameters, and `axag-schema` binds a Zod or OpenAPI schema. When several sources describe the same parameter, the annotation wins over the schema, and the schema over the HTML.
+
 ## Parameter Types
-`string`, `number`, `boolean`, `date`, `datetime`, `enum`, `array`, `object`
+`string`, `number`, `integer`, `boolean`, `array`, `object`
+
+Dates and enumerations aren't separate types: use `string` with `format` (`date`, `datetime`) or with `enum`.
 
 ## Parameter Constraints
 - `axag-parameter-min` / `axag-parameter-max` — Numeric range
 - `axag-parameter-min-length` / `axag-parameter-max-length` — String length
 - `axag-parameter-pattern` — Regex validation
 - `axag-parameter-enum` — Allowed values
-- `axag-parameter-format` — Format hint (email, url, phone, date, etc.)
+- `axag-parameter-format` — `email`, `url`, `date`, `datetime` or `uuid`
+
+In the object form, the same constraints are `min`, `max`, `minLength`, `maxLength`, `pattern`, `enum` and `format`.
 
 ## Constraints
 
@@ -2206,13 +2426,13 @@ Source: https://axag.org/docs/specification/constraints
 Constraints govern valid inputs and execution conditions. They MUST be declared in annotations, not hidden in client-side validation logic.
 
 ## Value Constraints
-Applied to individual parameters: type, format, range, pattern, enum, length.
+Applied to individual parameters: type, format, range, pattern, enum, length. Declare them on the parameter itself, in the object form of `axag-required-parameters` / `axag-optional-parameters`, or with the `axag-parameter-*` attributes on a form control. They become JSON Schema keywords (`enum`, `minimum`, `maxLength`, …) in the generated tool, so an agent host can check them before a call is made.
 
 ## Relational Constraints
-Relationships between parameters: mutual exclusion, conditional requirements, dependencies.
+Relationships between parameters: mutual exclusion, conditional requirements, dependencies. AXAG 1.1 has no machine-readable form for these. State them as preconditions, and in the description, so an agent can reason about them — and check them in the handler or API, which must reject a call that breaks them.
 
 ## Execution Constraints
-State requirements: preconditions, rate limits, cooldown periods, temporal windows.
+State requirements: preconditions, rate limits, cooldown periods, temporal windows. Use `axag-preconditions` for state, and `axag-rate-limit` / `axag-cooldown` for frequency.
 
 ## Declaration Example
 ```html
@@ -2220,13 +2440,25 @@ State requirements: preconditions, rate limits, cooldown periods, temporal windo
   axag-intent="booking.create"
   axag-entity="reservation"
   axag-action-type="write"
-  axag-required-parameters='["check_in","check_out","guests"]'
-  axag-constraints='{"check_out_after_check_in": "check_out > check_in", "max_guests": "guests <= 10"}'
-  axag-preconditions='["room_available"]'
+  axag-required-parameters='[
+    {"name":"check_in","type":"string","format":"date"},
+    {"name":"check_out","type":"string","format":"date"},
+    {"name":"guests","type":"integer","min":1,"max":10}
+  ]'
+  axag-preconditions='["room_available","check_out is after check_in"]'
+  axag-risk-level="medium"
+  axag-idempotent="false"
+  axag-description="Book a room. check_out must be after check_in."
 >
   Book Room
 </button>
 ```
+
+The range on `guests` is a value constraint and reaches the tool's input schema. The ordering of the two dates is relational, so it is written as a precondition and enforced by the booking API.
+
+:::note Changed in 1.1
+Earlier drafts showed an `axag-constraints` attribute holding expressions such as `"check_out > check_in"`. It was never part of the vocabulary and no tooling read it; declare value constraints on parameters instead.
+:::
 
 ## Risk Classification
 
@@ -2251,6 +2483,19 @@ Every mutating operation MUST declare a risk level. Risk classification drives s
 - **Searching products** → `none`
 
 Implementations MUST NOT classify a `delete` action as `none` risk unless the deletion is trivially reversible (e.g., removing an unsaved draft).
+
+Actions at `high` risk and above MUST also be [enforced on the server](/docs/frameworks/safety): a confirmation or approval the agent could skip protects nothing.
+
+## What the Linter Checks
+
+| Rule | Checks |
+|------|--------|
+| AXAG-LINT-023 | `write` and `delete` actions declare a risk level |
+| AXAG-LINT-006 | `high` and `critical` actions require confirmation |
+| AXAG-LINT-026 | Each level declares the safety metadata it needs — `critical` adds approval and approval roles |
+| AXAG-LINT-024 | `delete` actions below `high` are flagged for review |
+| AXAG-LINT-013 | `read` actions aren't `critical` |
+| AXAG-LINT-037 | `high` and `critical` actions are enforced by your server |
 
 ## Safety Boundaries
 
@@ -2285,7 +2530,7 @@ Operations that require a minimum interval between invocations SHOULD declare `a
 
 Source: https://axag.org/docs/specification/confirmation-requirements
 
-Confirmation requirements gate operation execution behind explicit user or agent acknowledgment.
+Confirmation requirements gate operation execution behind explicit acknowledgment by the person the agent acts for.
 
 ## When Confirmation Is Required
 - `risk_level` is `high` or `critical`
@@ -2296,9 +2541,12 @@ Confirmation requirements gate operation execution behind explicit user or agent
 ```html
 <button
   axag-intent="order.cancel"
+  axag-entity="order"
+  axag-action-type="write"
   axag-risk-level="high"
+  axag-idempotent="true"
   axag-confirmation-required="true"
-  axag-confirmation-message="This will cancel order #{{order_id}} and initiate a refund. This cannot be undone."
+  axag-confirmation-message="This will cancel the order and initiate a refund. This cannot be undone."
 >Cancel Order</button>
 ```
 
@@ -2308,6 +2556,15 @@ When `axag-confirmation-required="true"`, agent runtimes MUST:
 2. Wait for explicit confirmation
 3. Only proceed upon affirmative response
 4. Log the confirmation event
+
+## Server Enforcement
+
+Confirmation that only happens in the agent can be skipped, so the server MUST be able to tell that a person confirmed *this* call. In the SDK:
+
+- The page's [safety enforcers](/docs/frameworks/safety) show a confirmation dialog the agent can't dismiss, and exchange the person's answer for a single-use token bound to the intent, the parameters and the actor.
+- `@web-axag/server` refuses a call without a valid token with `AXAG_CONFIRMATION_MISSING`. A token can't be reused, or replayed with different parameters.
+
+The dialog shows the action's description, its risk level and the parameters the agent supplied. `axag-confirmation-message` isn't carried into the manifest in 1.1, so write the consequence into `axag-description` as well.
 
 ## Approval Requirements
 
@@ -2319,7 +2576,11 @@ Approval requirements gate operations behind multi-party authorization. These ar
 ```html
 <button
   axag-intent="refund.process"
+  axag-entity="refund"
+  axag-action-type="write"
   axag-risk-level="high"
+  axag-confirmation-required="true"
+  axag-idempotent="false"
   axag-approval-required="true"
   axag-approval-roles='["finance_manager","finance_director"]'
   axag-approval-count="1"
@@ -2337,6 +2598,10 @@ When `axag-approval-required="true"`, agent runtimes MUST:
 2. Notify the appropriate approval roles
 3. Wait for the required number of approvals
 4. Execute only after all approvals are received
+
+## Server Enforcement
+
+An agent can skip these steps, so the server MUST refuse an approval-gated call that has no approval, with `AXAG_APPROVAL_MISSING`. `@web-axag/server` does this on every call through an `approvals` hook you provide — it answers whether *this* call, by *this* actor, has been approved. How requests are raised, routed to `approval_roles` and counted is up to your application; `approval_count` isn't carried into the manifest in 1.1, so the hook is where it is enforced. See [Safety Enforcers](/docs/frameworks/safety).
 
 ## Context Inheritance
 
@@ -2361,6 +2626,16 @@ AXAG supports context inheritance — child elements inherit scope, tenant, and 
   <!-- Delete overrides to require super_admin (more restrictive) — valid -->
 </section>
 ```
+
+## How Tooling Applies It
+
+The linter, `@web-axag/compiler`, `axag generate` and the in-page runtime all read an annotation's context the same way: for each of `axag-scope`, `axag-tenant-boundary` and `axag-required-roles` the element doesn't declare, the nearest ancestor that does supplies it. The manifest records the result on each action, so nothing downstream has to know the value was inherited.
+
+- **Nearest wins.** A nested container overrides an outer one.
+- **Whole values.** An element that declares `axag-required-roles` replaces the inherited list; the two aren't merged.
+- **Within one tree.** In JSX, inheritance follows the markup in a file. A component rendered inside a `<section axag-scope="tenant">` in a different file doesn't see that section at build time — declare the context on the component, or register it with a binding.
+
+Rule 5 — a child must not loosen what it inherits — isn't checked by `axag-lint` yet. Review overrides of `axag-scope` and `axag-tenant-boundary` by hand.
 
 ## Namespacing
 
@@ -2397,9 +2672,14 @@ The AXAG specification follows semantic versioning: `MAJOR.MINOR.PATCH`.
 - **PATCH** — Clarifications, typo fixes, informative content updates
 
 ## Annotation Versioning
-Annotations MAY declare the specification version they conform to:
+Annotations MAY declare the specification version they conform to. The manifest records the generator's version in its own `version` field, so `axag-version` is only needed where one page mixes annotations written against different versions:
 ```html
-<button axag-version="1.0.0" axag-intent="product.search" ...>Search</button>
+<button
+  axag-version="1.1.0"
+  axag-intent="product.search"
+  axag-entity="product"
+  axag-action-type="read"
+>Search</button>
 ```
 
 ## Backward Compatibility
@@ -2411,32 +2691,55 @@ Annotations MAY declare the specification version they conform to:
 
 Source: https://axag.org/docs/specification/error-semantics
 
-AXAG defines error codes and semantics for annotation validation and runtime execution failures.
+AXAG defines two families of error codes: validation codes for annotations that break the specification, and runtime codes for calls that break the contract an annotation declares.
 
 ## Validation Error Codes
 
-| Code | Name | Description |
-|------|------|-------------|
-| `AXAG-001` | Missing Intent | `axag-intent` not declared |
-| `AXAG-002` | Missing Entity | `axag-entity` not declared |
-| `AXAG-003` | Missing Action Type | `axag-action-type` not declared |
-| `AXAG-004` | Invalid Action Type | Value not in allowed enum |
-| `AXAG-005` | Invalid Risk Level | Value not in allowed enum |
-| `AXAG-006` | Unsafe Mutation | Mutating action without risk declaration |
-| `AXAG-007` | Missing Confirmation | High/critical risk without confirmation requirement |
-| `AXAG-008` | Parameter Mismatch | Required parameters not matching input elements |
-| `AXAG-009` | Scope Mismatch | Child scope less restrictive than parent |
-| `AXAG-010` | Manifest Drift | Annotation changed without manifest regeneration |
+Validation codes have the form `AXAG-LINT-NNN` and are reported by `axag-lint` and `axag validate`, with a file, line and column. Each rule has a default severity — `error`, `warning` or `info` — that a project may change, and a conformance level it belongs to.
+
+| Codes | What they cover |
+|-------|-----------------|
+| `AXAG-LINT-001`–`003` | Missing intent, entity or action type |
+| `AXAG-LINT-004`–`005` | Values outside the vocabulary |
+| `AXAG-LINT-006`–`007`, `023`–`026` | Safety metadata that doesn't match the risk level |
+| `AXAG-LINT-010` | An intent missing from the manifest |
+| `AXAG-LINT-011`, `018`–`022` | Scope and tenancy |
+| `AXAG-LINT-036`–`037` | Server enforcement |
+
+The [Error Codes Reference](/docs/reference/error-codes#validation-error-codes) lists all 37.
 
 ## Runtime Error Codes
 
-| Code | Name | Description |
-|------|------|-------------|
-| `AXAG-R001` | Precondition Not Met | Required precondition is false |
-| `AXAG-R002` | Confirmation Rejected | User declined confirmation |
-| `AXAG-R003` | Approval Pending | Awaiting required approvals |
-| `AXAG-R004` | Rate Limited | Invocation frequency exceeded |
-| `AXAG-R005` | Role Unauthorized | Invoking role not in required roles |
+Runtime codes have the form `AXAG_NAME`. A refused call returns one in a flat object alongside its HTTP status:
+
+```json
+{
+  "error": "AXAG_ROLE_INSUFFICIENT",
+  "status": 403,
+  "message": "\"audit_log.purge\" requires one of: auditor",
+  "intent": "audit_log.purge",
+  "details": { "required_roles": ["auditor"] }
+}
+```
+
+Implementations that refuse a call MUST use this shape and the code that matches the reason:
+
+| Reason | Code | Status |
+|--------|------|--------|
+| A required parameter is missing, or a value breaks its type or constraints | `AXAG_MISSING_PARAM`, `AXAG_INVALID_TYPE`, `AXAG_OUT_OF_RANGE`, `AXAG_INVALID_ENUM`, `AXAG_INVALID_FORMAT` | 400 |
+| A precondition is false | `AXAG_PRECONDITION_FAILED` | 412 |
+| Confirmation is required and absent, declined or invalid | `AXAG_CONFIRMATION_MISSING` | 428 |
+| Approval is required and not granted | `AXAG_APPROVAL_MISSING` | 428 |
+| Approval came from a role that may not approve | `AXAG_APPROVAL_INVALID` | 403 |
+| The caller lacks a required role | `AXAG_ROLE_INSUFFICIENT` | 403 |
+| The call reaches outside its scope or tenant | `AXAG_SCOPE_VIOLATION`, `AXAG_TENANT_BOUNDARY` | 403 |
+| The intent doesn't exist | `AXAG_INTENT_NOT_FOUND` | 404 |
+
+A refusal MUST NOT perform any part of the operation. See the [Error Codes Reference](/docs/reference/error-codes#runtime-error-codes) for which codes AXAG tooling raises today.
+
+:::note Changed in 1.1
+Earlier drafts of this page used `AXAG-001` and `AXAG-R001` style codes. No tooling ever emitted them; they are replaced by the `AXAG-LINT-NNN` and `AXAG_NAME` codes above.
+:::
 
 ## Conformance Levels
 
@@ -2469,7 +2772,21 @@ Every Semantic Manifest declares its conformance level in the `conformance` fiel
 }
 ```
 
-The CLI's `axag validate --level` flag accepts the same names. The earlier `A`, `AA`, `AAA` names are still accepted and map to `basic`, `intermediate`, `full`.
+### How Generators Compute It
+
+`@web-axag/compiler` and `axag generate` compute the level from every action in the manifest:
+
+| Level | Every action has | And |
+|-------|------------------|-----|
+| `basic` | `intent`, `entity`, `action_type`, `description` | — |
+| `intermediate` | the above, plus `risk_level`, and `idempotent` on every write or delete | — |
+| `full` | the above, plus `scope` | at least one action declares preconditions or side effects |
+
+A manifest that fails a level's checks is reported at the level below it, so the claim never overstates the annotations. Note that the generator looks for `axag-scope` at `full` rather than at `intermediate`, and doesn't require parameters to be declared — an action can legitimately take none.
+
+### Validating Against a Level
+
+`axag validate --level basic|intermediate|full` runs only the lint rules that belong to that level and below: identity, vocabulary and parameters at `basic`; safety, scope and harvesting at `intermediate`; contradictions, manifest cross-references and server enforcement at `full`. The earlier `A`, `AA`, `AAA` names are still accepted and map to `basic`, `intermediate`, `full`.
 
 
 # Semantic Manifest
@@ -2497,8 +2814,8 @@ The manifest:
   "generated_at": "2026-09-14T00:00:00.000Z",
   "source": {
     "paths": ["src"],
-    "tool": "axag-cli",
-    "tool_version": "1.0.2"
+    "tool": "@web-axag/cli",
+    "tool_version": "1.1.0"
   },
   "conformance": "intermediate",
   "actions": [
@@ -2576,6 +2893,7 @@ The Semantic Manifest is validated by a JSON Schema published at [`/schema/v1.1/
 | `source` | `Source` | Yes | Where the annotations were read from |
 | `conformance` | `enum` | Yes | `basic`, `intermediate`, `full` |
 | `actions` | `Action[]` | Yes | Operation definitions |
+| `dynamic_actions` | `object[]` | No | Annotations registered at runtime rather than read at build time (1.1) — `source_file`, `source_line`, `reason` |
 
 ## Source Fields
 | Field | Type | Required | Description |
@@ -2629,6 +2947,8 @@ The Semantic Manifest is validated by a JSON Schema published at [`/schema/v1.1/
 
 Which optional fields a manifest fills in determines its [conformance level](/docs/specification/conformance-levels).
 
+The schema sets `additionalProperties: false`, so a field it doesn't define makes the manifest invalid. Extensions belong in [namespaced attributes](/docs/specification/namespacing), not in the manifest.
+
 ## Manifest Generation Model
 
 Source: https://axag.org/docs/semantic-manifest/generation-model
@@ -2652,7 +2972,7 @@ graph LR
 A bundler plugin reads source files (HTML, JSX, TSX, Vue SFC, Angular templates) and generates the manifest during the build. See [Build-Time Compilation](/docs/tool-generation/build-time-compilation).
 
 ### Runtime Extraction
-A client-side script reads `axag-*` attributes from the live DOM. Useful for dynamic applications where annotations are computed at runtime.
+`registerDocument()` from [`@web-axag/webmcp`](/docs/frameworks/runtime) reads annotations from the live DOM and registers them as tools. Useful for pages with no build step. Framework bindings register specs built at runtime the same way, action by action.
 
 ### Static Analysis
 An AST-based analyzer processes source files without rendering — `axag generate` in CI, using the same compiler as the bundler plugin. Most reliable for CI/CD validation.
@@ -2744,18 +3064,32 @@ See [Bind Zod or OpenAPI Schemas](/docs/tutorials/bind-schemas).
 
 To turn harvesting off, run `axag scan … --no-harvest`.
 
+## Where Bindings Are Resolved
+
+Loading a Zod module or an OpenAPI document is work the bundler plugin doesn't do: `axag-schema` is resolved by the CLI — `axag generate` and `axag scan` — which ships `@web-axag/schema-zod` and `@web-axag/schema-openapi` as dependencies.
+
+A build that uses [`@web-axag/compiler`](/docs/tool-generation/build-time-compilation) alone will harvest the markup and read declared parameters, but leaves `axag-schema` unresolved. Where you want bound parameters in the manifest, generate it with the CLI in CI rather than from the bundler, or declare the parameters on the annotation.
+
 ## Manifest Discovery Model
 
 Source: https://axag.org/docs/semantic-manifest/discovery-model
 
-Agent runtimes discover manifests through well-known URLs or service registries.
+An agent finds out what a site can do in one of two ways: the page registers tools with it directly, or the agent fetches the site's manifest.
 
-## Discovery Mechanisms
+## In the Page: WebMCP Registration
+
+An agent running in the browser doesn't need to fetch anything. [`@web-axag/webmcp`](/docs/frameworks/runtime) registers each annotated action with `document.modelContext` while its element is on screen, and removes it when the element goes. This is the most precise form of discovery, because the tool list always matches what the person can see.
+
+## Outside the Page: The Manifest
+
+Agents that don't run in the page — crawlers, server-side agents, tool registries — fetch the manifest.
 
 ### Well-Known URL
 ```
 https://example.com/.well-known/axag-manifest.json
 ```
+
+`@web-axag/compiler` writes the manifest here on every build, and the WebMCP tool definitions to `/axag-tools.webmcp.json`.
 
 ### HTTP Header
 ```
@@ -2764,18 +3098,22 @@ Link: </.well-known/axag-manifest.json>; rel="axag-manifest"
 
 ### Meta Tag
 ```html
-<meta name="axag-manifest" content="/axag-manifest.json" />
+<meta name="axag-manifest" content="/.well-known/axag-manifest.json" />
 ```
+
+The header and the meta tag let a site serve its manifest from another path, or point different sections at different manifests. Neither is added for you; set them in your server or HTML template.
 
 ### Service Registry
 For microservice architectures, manifests can be registered in a central manifest registry.
 
 ## Discovery Flow
 1. Agent navigates to a domain
-2. Agent checks for well-known URL, HTTP header, or meta tag
-3. Agent fetches the manifest
-4. Agent indexes available operations
+2. In the page, agent reads the tools registered with `document.modelContext`
+3. Otherwise, agent checks for the HTTP header or meta tag, then the well-known URL
+4. Agent fetches the manifest
 5. Agent generates or consumes tool definitions
+
+A manifest lists what can be *built* from the source. Actions listed in its `dynamic_actions` exist only at runtime, so an agent that needs those must use the page.
 
 ## Execution Planning Role
 
@@ -2797,6 +3135,8 @@ confirm_order       → pre: payment_processed → post: order_confirmed
 
 The agent constructs a dependency graph and executes operations in the correct sequence.
 
+Preconditions and postconditions are strings written for people and agents to read, matched by convention rather than evaluated by AXAG tooling. Use the same wording on both sides — `cart_validated`, not "cart has been validated" in one place and "cart valid" in another — or the chain an agent infers will have gaps. Each operation must still refuse a call whose precondition isn't met, with `AXAG_PRECONDITION_FAILED`.
+
 ## Conflict Detection
 The manifest also enables agents to detect conflicting operations — for example, two operations that both modify the same entity with incompatible postconditions.
 
@@ -2804,11 +3144,7 @@ The manifest also enables agents to detect conflicting operations — for exampl
 
 Source: https://axag.org/docs/semantic-manifest/field-reference
 
-Complete reference for all manifest fields. See [Manifest Schema](/docs/semantic-manifest/manifest-schema) for the structural overview.
-
-For each field, this reference provides: name, type, required status, description, constraints, and examples.
-
-Refer to the [Full Schema Reference](/docs/reference/schema-reference) for the canonical JSON Schema document.
+Every manifest field — its type, whether it is required, and what it means — is listed in the [Manifest Fields reference](/docs/reference/manifest-fields). See [Manifest Schema](/docs/semantic-manifest/manifest-schema) for the structural overview, and the [Full Schema Reference](/docs/reference/schema-reference) for the canonical JSON Schema document.
 
 ## Manifest Validation
 
@@ -2828,10 +3164,16 @@ Manifests MUST be validated before consumption by agent runtimes.
 ## Validation in CI
 
 ```yaml
-# Example CI step
-- name: Validate AXAG Manifest
+# Generate the manifest and check it against the JSON Schema
+- name: Generate and validate the manifest
+  run: npx axag generate src --manifest axag-manifest.json --validate
+
+# Check the annotations themselves at a conformance level
+- name: Validate annotations
   run: npx axag validate src --level intermediate --strict
 ```
+
+`--validate` on `generate` is the schema check: the manifest must match [`axag-manifest.schema.json`](pathname:///schema/v1.1/axag-manifest.schema.json), which rejects unknown fields as well as invalid ones. `axag validate` checks the source annotations instead. A build that generates the manifest with [`@web-axag/compiler`](/docs/tool-generation/build-time-compilation) validates on every build and fails on error diagnostics.
 
 ## Common Validation Failures
 
@@ -2839,7 +3181,7 @@ Manifests MUST be validated before consumption by agent runtimes.
 |---------|-------|-----|
 | Missing required fields | Annotations incomplete | Add missing `axag-*` attributes |
 | Invalid enum value | Typo in action type or risk level | Use values from canonical vocabulary |
-| Parameter mismatch | Manifest lists parameters not in annotations | Regenerate manifest from source |
+| Manifest drift | A committed manifest generated from older source | Regenerate it, or generate on every build |
 | Safety violation | High-risk mutation without confirmation | Add `axag-confirmation-required="true"` |
 
 
@@ -2967,29 +3309,29 @@ Each MCP tool has a signature consisting of: name, description, input schema, an
 }
 ```
 
+The same action in a WebMCP tool definition carries `inputSchema` and `annotations.axag` instead of `input_schema` and `metadata` — the fields are the same. See [Mapping Rules](/docs/tool-generation/mapping-rules).
+
 ## Naming Conventions
 - Tool names MUST be unique within a tool registry
-- Tool names SHOULD use snake_case
-- Tool names SHOULD be verb_noun or noun_verb format
+- A tool's name is its intent with `.` replaced by `_`, so `product.search` becomes `product_search` — snake_case, `entity_verb`, and always traceable back to the annotation
+- Names are not configurable: to change a tool's name, change the intent
 
 ## Input Schema Translation
 
 Source: https://axag.org/docs/tool-generation/input-schema-translation
 
-Manifest parameters translate to JSON Schema within the MCP tool's `input_schema`.
+Manifest parameters translate to JSON Schema: `input_schema` in the tool registry, `inputSchema` in WebMCP tool definitions. Required parameters are listed in the schema's `required` array.
 
 ## Type Mapping
 
-| AXAG Parameter Type | JSON Schema Type |
-|--------------------|-----------------|
-| `string` | `"type": "string"` |
-| `number` | `"type": "number"` |
-| `boolean` | `"type": "boolean"` |
-| `date` | `"type": "string", "format": "date"` |
-| `datetime` | `"type": "string", "format": "date-time"` |
-| `enum` | `"type": "string", "enum": [...]` |
-| `array` | `"type": "array", "items": {...}` |
-| `object` | `"type": "object", "properties": {...}` |
+| AXAG Parameter | JSON Schema |
+|----------------|-------------|
+| `"type": "string"` | `"type": "string"` |
+| `"type": "number"` | `"type": "number"` |
+| `"type": "integer"` | `"type": "integer"` |
+| `"type": "boolean"` | `"type": "boolean"` |
+| `"type": "array"`, `items` | `"type": "array"`, `"items": {...}` |
+| `"type": "object"`, `properties` | `"type": "object"`, `"properties": {...}` |
 
 ## Constraint Translation
 
@@ -2997,11 +3339,28 @@ Manifest parameters translate to JSON Schema within the MCP tool's `input_schema
 |----------------|-------------|
 | `min` | `"minimum"` |
 | `max` | `"maximum"` |
-| `min_length` | `"minLength"` |
-| `max_length` | `"maxLength"` |
+| `minLength` | `"minLength"` |
+| `maxLength` | `"maxLength"` |
 | `pattern` | `"pattern"` |
-| `format` | `"format"` |
 | `enum` | `"enum"` |
+| `default` | `"default"` |
+| `description` | `"description"` |
+| `format: "date"` | `"format": "date"` |
+| `format: "datetime"` | `"format": "date-time"` |
+| `format: "url"` | `"format": "uri"` |
+| `format: "email"`, `"uuid"` | `"format"` unchanged |
+
+## Example
+
+```json title="Manifest parameter"
+{ "name": "check_in", "type": "string", "format": "datetime" }
+```
+
+```json title="JSON Schema property"
+{
+  "check_in": { "type": "string", "format": "date-time" }
+}
+```
 
 ## Constraints and Safety Translation
 
@@ -3073,7 +3432,9 @@ Tool definitions carry role and tenant context from AXAG annotations, enabling a
 }
 ```
 
-Agent runtimes MUST validate the invoking identity's roles and tenant context before executing tools with access control metadata.
+Agent runtimes SHOULD check this metadata before invoking a tool, so an agent doesn't attempt a call it can't make. That check is a courtesy, not a control: the metadata travels with the tool, and an agent that ignores it still reaches your API with the page's session.
+
+The enforcement that counts happens on your server, against the manifest rather than anything the caller sent — [`@web-axag/server`](/docs/frameworks/safety) checks `required_roles`, `scope` and `tenant_boundary` on every call and refuses with `AXAG_ROLE_INSUFFICIENT` or `AXAG_TENANT_BOUNDARY`. A tenant-scoped tool should also not accept the tenant as a parameter; `axag-lint` reports that as AXAG-LINT-036.
 
 ## Build-Time Compilation
 
@@ -3082,14 +3443,14 @@ Source: https://axag.org/docs/tool-generation/build-time-compilation
 A bundler plugin reads annotations while your app builds, so the manifest and the agent-facing tools are produced from the same sources, at the same moment, as the code that ships.
 
 ```bash
-npm install -D @axag/compiler
+npm install -D @web-axag/compiler
 ```
 
 ```ts title="vite.config.ts"
 
 ```
 
-The plugin is built on [unplugin](https://github.com/unjs/unplugin), so the same implementation ships for Vite, Rollup, webpack, Rspack and esbuild — import from `@axag/compiler/webpack`, `/rollup`, `/rspack` or `/esbuild`.
+The plugin is built on [unplugin](https://github.com/unjs/unplugin), so the same implementation ships for Vite, Rollup, webpack, Rspack and esbuild — import from `@web-axag/compiler/webpack`, `/rollup`, `/rspack` or `/esbuild`.
 
 ## What a build produces
 
@@ -3166,6 +3527,10 @@ npx axag generate src --manifest public/.well-known/axag-manifest.json --validat
 - [Tool Registry Generation](/docs/tool-generation/tool-registry-generation)
 - [Runtime Consumption Patterns](/docs/tool-generation/runtime-consumption-patterns)
 
+## What the Plugin Doesn't Do
+
+`axag-schema` bindings — a Zod export or an OpenAPI operation — are resolved by the CLI, not by the plugin. A bundler build harvests form markup and reads declared parameters, but an action whose parameters come only from a bound schema will appear without them. Run `npx axag generate src --manifest axag-manifest.json` where those bindings matter. See [Schema Harvesting](/docs/semantic-manifest/schema-harvesting#where-bindings-are-resolved).
+
 ## Tool Registry Generation
 
 Source: https://axag.org/docs/tool-generation/tool-registry-generation
@@ -3196,9 +3561,13 @@ graph LR
 ```
 
 ## Serving the Registry
-- Static JSON file served at a well-known endpoint
-- MCP server that dynamically resolves tools from the manifest
-- API endpoint that returns tool definitions on demand
+
+| How | Produced by |
+|-----|-------------|
+| `axag-tools.webmcp.json` in your build output, next to `/.well-known/axag-manifest.json` | [`@web-axag/compiler`](/docs/tool-generation/build-time-compilation) |
+| `import { tools } from 'virtual:axag/tools'`, registered in the page for as long as their UI is on screen | `@web-axag/compiler` + [`@web-axag/webmcp`](/docs/frameworks/runtime) |
+| An MCP server over stdio, offering whatever a browser tab has registered right now | [`@web-axag/bridge`](/docs/frameworks/bridge) |
+| `tool-registry.json` written in CI | `axag generate --tools` or `axag generate-tools` |
 
 ## Generated Tool Examples
 
@@ -3542,7 +3911,7 @@ Source: https://axag.org/docs/frameworks/runtime
 A manifest tells an agent what a page *can* do. The runtime tells it what the page can do **right now** — which actions are on screen, enabled, and permitted for this user.
 
 ```bash
-npm install @axag/webmcp
+npm install @web-axag/webmcp
 ```
 
 ## Registration follows the UI
@@ -3616,16 +3985,16 @@ The runtime uses `document.modelContext`, falling back to `navigator.modelContex
 
 | Framework | Package | Reach for |
 |-----------|---------|-----------|
-| React | [`@axag/react`](/docs/frameworks/react) | `useAxag`, `` |
-| Vue | [`@axag/vue`](/docs/frameworks/vue) | `useAxag`, `v-axag` |
-| Angular | [`@axag/angular`](/docs/frameworks/angular) | `[axag]` directive |
+| React | [`@web-axag/react`](/docs/frameworks/react) | `useAxag`, `` |
+| Vue | [`@web-axag/vue`](/docs/frameworks/vue) | `useAxag`, `v-axag` |
+| Angular | [`@web-axag/angular`](/docs/frameworks/angular) | `[axag]` directive |
 
 ## React
 
 Source: https://axag.org/docs/frameworks/react
 
 ```bash
-npm install @axag/react
+npm install @web-axag/react
 ```
 
 ```tsx
@@ -3643,7 +4012,7 @@ const deactivateUser = defineAction({
 }
 ```
 
-The hook returns the `axag-*` attributes and a ref. Spreading them puts the annotation in the DOM — where the [DevTools extension](https://axag.org) and any other reader can see it — and registers the action while the component is mounted.
+The hook returns the `axag-*` attributes and a ref. Spreading them puts the annotation in the DOM — where browser DevTools, the linter's DOM checks and any other reader can see it — and registers the action while the component is mounted.
 
 ## Options
 
@@ -3672,14 +4041,14 @@ Renders a `display: contents` span, so it changes no layout. `as` renders a diff
 
 ## Build-time extraction
 
-A spec held in a module-level `const` is also read by [`@axag/compiler`](/docs/tool-generation/build-time-compilation) at build time, so the same action appears in the manifest without running the app. A spec built from props can't be, and is listed under `dynamic_actions`.
+A spec held in a module-level `const` is also read by [`@web-axag/compiler`](/docs/tool-generation/build-time-compilation) at build time, so the same action appears in the manifest without running the app. A spec built from props can't be, and is listed under `dynamic_actions`.
 
 ## Vue
 
 Source: https://axag.org/docs/frameworks/vue
 
 ```bash
-npm install @axag/vue
+npm install @web-axag/vue
 ```
 
 ## Composable
@@ -3726,14 +4095,14 @@ The directive writes the `axag-*` attributes onto the element and registers the 
 
 ## Templates are read at build time too
 
-[`@axag/compiler`](/docs/tool-generation/build-time-compilation) reads `<template>` blocks in `.vue` files, so a static `axag="write:cart.add_item!low"` appears in the manifest. A bound `:axag="spec"` is only known at runtime and is listed under `dynamic_actions`.
+[`@web-axag/compiler`](/docs/tool-generation/build-time-compilation) reads `<template>` blocks in `.vue` files, so a static `axag="write:cart.add_item!low"` appears in the manifest. A bound `:axag="spec"` is only known at runtime and is listed under `dynamic_actions`.
 
 ## Angular
 
 Source: https://axag.org/docs/frameworks/angular
 
 ```bash
-npm install @axag/angular
+npm install @web-axag/angular
 ```
 
 ```ts
@@ -3775,7 +4144,7 @@ npm install @axag/angular
 
 ## Templates are read at build time too
 
-[`@axag/compiler`](/docs/tool-generation/build-time-compilation) reads `*.component.html` templates, so a static `axag="write:user.deactivate!critical"` appears in the manifest. A bound `[axag]="spec"` is known only at runtime and is listed under `dynamic_actions`.
+[`@web-axag/compiler`](/docs/tool-generation/build-time-compilation) reads `*.component.html` templates, so a static `axag="write:user.deactivate!critical"` appears in the manifest. A bound `[axag]="spec"` is known only at runtime and is listed under `dynamic_actions`.
 
 ## Safety Enforcers
 
@@ -3878,7 +4247,7 @@ WebMCP is a draft. Annotating a page for agents shouldn't wait for it to ship ev
 ## The shim
 
 ```bash
-npm install @axag/shim
+npm install @web-axag/shim
 ```
 
 ```ts
@@ -3886,7 +4255,7 @@ npm install @axag/shim
 installShim(); // does nothing where the browser has its own implementation
 ```
 
-It implements the part of the draft a page calls — `registerTool(tool, { signal })`, with abort unregistering — so [`@axag/webmcp`](/docs/frameworks/runtime) and the framework bindings work unchanged. Under 2 KB gzipped, no dependencies.
+It implements the part of the draft a page calls — `registerTool(tool, { signal })`, with abort unregistering — so [`@web-axag/webmcp`](/docs/frameworks/runtime) and the framework bindings work unchanged. Under 2 KB gzipped, no dependencies.
 
 Installing it connects no agent. It is the socket a connection plugs into.
 
@@ -3940,9 +4309,9 @@ Calls run **in the tab**, in the session the person is already signed into. No c
 
 | Situation | Reach for |
 |-----------|-----------|
-| Browser ships WebMCP | Nothing extra — [`@axag/webmcp`](/docs/frameworks/runtime) uses it |
-| Browser has no WebMCP, agent runs in the page | `@axag/shim` |
-| Agent runs outside the browser (desktop client, terminal) | `@axag/shim` + `@axag/bridge` |
+| Browser ships WebMCP | Nothing extra — [`@web-axag/webmcp`](/docs/frameworks/runtime) uses it |
+| Browser has no WebMCP, agent runs in the page | `@web-axag/shim` |
+| Agent runs outside the browser (desktop client, terminal) | `@web-axag/shim` + `@web-axag/bridge` |
 
 MCP is an open protocol, and its remote transport is Streamable HTTP; the standalone SSE transport is deprecated. The bridge speaks stdio by default because that is what desktop clients configure most easily.
 
@@ -4149,17 +4518,24 @@ Tables with row-level and bulk actions require annotations on action controls wi
 
 ## Row Action
 ```html title="Row-level actions — view & cancel" showLineNumbers
-<table axag-entity="order" axag-scope="user">
+<table axag-scope="user">
   <tr>
     <td>Order #1234</td>
     <td>
-      <button axag-intent="order.view" axag-action-type="navigate" axag-required-parameters='["order_id"]'>View</button>
-      <button axag-intent="order.cancel" axag-action-type="write" axag-risk-level="high"
-        axag-confirmation-required="true" axag-required-parameters='["order_id"]'>Cancel</button>
+      <button axag-intent="order.view" axag-entity="order" axag-action-type="navigate"
+        axag-required-parameters='["order_id"]' axag-risk-level="none">View</button>
+      <button axag-intent="order.cancel" axag-entity="order" axag-action-type="write"
+        axag-risk-level="high" axag-confirmation-required="true" axag-idempotent="true"
+        axag-preconditions='["order is not shipped"]'
+        axag-required-parameters='["order_id"]'>Cancel</button>
     </td>
   </tr>
 </table>
 ```
+
+Each row control is its own action and needs its own intent, entity and action type. Only `axag-scope`, `axag-tenant-boundary` and `axag-required-roles` are [inherited](/docs/specification/context-inheritance) from the table — the entity is not.
+
+One row's annotation describes the operation for every row: the `order_id` parameter is what tells an agent which row it is acting on.
 
 ## Bulk Action
 ```html title="Bulk action — export selected"
@@ -4178,20 +4554,55 @@ Tables with row-level and bulk actions require annotations on action controls wi
 
 Source: https://axag.org/docs/authoring-guide/annotating-search-filters
 
-Search and filter controls combine read operations with multiple optional parameters.
+Search and filter controls combine a read operation with several optional parameters. Annotate the form once: its controls are [harvested](/docs/semantic-manifest/schema-harvesting) into parameters, with their names, types, labels and HTML constraints.
 
 ```html title="Search with filters — form-level annotation" showLineNumbers
-<div axag-intent="product.search" axag-entity="product" axag-action-type="read" axag-scope="public">
-  <input axag-parameter="query" axag-parameter-type="string" axag-parameter-required="true" />
-  <select axag-parameter="category" axag-parameter-type="enum" axag-parameter-required="false"
+<form axag-intent="product.search" axag-entity="product" axag-action-type="read"
+  axag-scope="public" axag-risk-level="none" axag-idempotent="true">
+  <label for="q">Search</label>
+  <input id="q" name="query" axag-parameter-required="true" />
+
+  <label for="category">Category</label>
+  <select id="category" name="category"
     axag-parameter-enum='["electronics","clothing","home"]'>
     <option value="">All Categories</option>
   </select>
-  <input axag-parameter="price_min" axag-parameter-type="number" axag-parameter-min="0" />
-  <input axag-parameter="price_max" axag-parameter-type="number" axag-parameter-min="0" />
-  <button axag-risk-level="none" axag-idempotent="true">Search</button>
-</div>
+
+  <label for="price_min">Minimum price</label>
+  <input id="price_min" name="price_min" type="number" min="0" step="0.01" />
+
+  <label for="price_max">Maximum price</label>
+  <input id="price_max" name="price_max" type="number" min="0" step="0.01" />
+
+  <button type="submit">Search</button>
+</form>
 ```
+
+The manifest this produces declares every filter, without any of them being listed on the annotation:
+
+```json title="Harvested parameters"
+{
+  "intent": "product.search",
+  "required_parameters": [
+    { "name": "query", "type": "string", "description": "Search", "source": "harvested:html" }
+  ],
+  "optional_parameters": [
+    { "name": "category", "type": "string", "description": "Category",
+      "enum": ["electronics", "clothing", "home"], "source": "harvested:html" },
+    { "name": "price_min", "type": "number", "min": 0, "description": "Minimum price", "source": "harvested:html" },
+    { "name": "price_max", "type": "number", "min": 0, "description": "Maximum price", "source": "harvested:html" }
+  ]
+}
+```
+
+Notes on what the harvester read:
+
+- The control's `name` becomes the parameter name, and its `<label>` becomes the description an agent reads.
+- `type="number"` with a decimal `step` becomes `number`; without one it becomes `integer`. `min` and `max` carry over.
+- A control is required when the HTML says so (`required`) or when `axag-parameter-required="true"` says so.
+- `axag-parameter-*` attributes fill what the markup can't express — here, the category values, since the `<option>` list is a placeholder plus a server-rendered set.
+
+A filter that isn't a form control at all — a set of chips, a custom dropdown — can't be harvested. Declare those in `axag-optional-parameters` on the annotation.
 
 ## Annotating Multi-Step Workflows
 
@@ -4221,6 +4632,8 @@ Multi-step workflows use workflow attributes to declare step position and flow.
 </div>
 ```
 
+The workflow attributes describe the flow for people reading the markup; they aren't carried into the 1.1 manifest. What an agent actually uses to order the steps is the chain of `axag-preconditions` and `axag-postconditions` — see [Composite Flows](/docs/authoring-guide/annotating-composite-flows). Declare both: the workflow attributes document the UI, the conditions document the contract.
+
 ## Annotating Approval Gates
 
 Source: https://axag.org/docs/authoring-guide/annotating-approval-gates
@@ -4234,6 +4647,9 @@ Operations requiring multi-party approval need explicit approval annotations.
   axag-action-type="write"
   axag-required-parameters='["order_id","amount","reason"]'
   axag-risk-level="high"
+  axag-confirmation-required="true"
+  axag-idempotent="false"
+  axag-preconditions='["order is settled","refund amount within limit"]'
   axag-approval-required="true"
   axag-approval-roles='["finance_manager"]'
   axag-approval-count="1"
@@ -4241,7 +4657,9 @@ Operations requiring multi-party approval need explicit approval annotations.
 >Process Refund</button>
 ```
 
-The agent runtime will submit an approval request rather than executing directly, then wait for the required number of approvals from authorized roles.
+The agent runtime should submit an approval request rather than executing directly, then wait for approval from an authorized role.
+
+Because an agent can skip that, the gate has to exist on the server too: [`@web-axag/server`](/docs/frameworks/safety) asks your `approvals` hook on every call and refuses with `AXAG_APPROVAL_MISSING` when approval hasn't been granted. `axag-approval-count` isn't carried into the manifest, so a rule like "two approvers" lives in that hook. See [Approval Requirements](/docs/specification/approval-requirements).
 
 ## Annotating Destructive Actions
 
@@ -4265,16 +4683,19 @@ Destructive actions (delete, purge, revoke) require explicit safety annotations.
 ```
 
 Rules:
-- `delete` actions MUST declare `axag-risk-level` of `medium` or higher
-- `critical` risk actions MUST have `axag-confirmation-required="true"`
-- Irreversible actions SHOULD declare `axag-idempotent="false"`
+- `delete` actions MUST declare a risk level, and MUST NOT be `none` unless trivially reversible. `axag-lint` flags any below `high` for review (AXAG-LINT-024)
+- `high` and `critical` actions MUST have `axag-confirmation-required="true"`; `critical` actions also need approval (AXAG-LINT-026)
+- Declare idempotency honestly: deleting an already-deleted record is often idempotent, but an action that also cancels subscriptions or sends email usually isn't
 - All side effects MUST be declared
+- `high` and `critical` actions MUST be [enforced on the server](/docs/frameworks/safety)
+
+The example above is `critical` without approval, so `axag-lint` warns about it. For self-service account deletion that is a reasonable choice — no one else should approve deleting your own account — and the warning can be turned off for that file. For an admin deleting someone else's account, add `axag-approval-required` and `axag-approval-roles`.
 
 ## Annotating Async Operations
 
 Source: https://axag.org/docs/authoring-guide/annotating-async-operations
 
-Asynchronous operations produce results after a delay. Annotate them with postconditions and polling hints.
+Asynchronous operations return before their result is ready. Mark them with `axag-async="true"`, and declare what becomes true once the work finishes as a postcondition, so an agent knows not to treat the first response as the result.
 
 ```html title="Async operation — report generation" showLineNumbers
 <button
@@ -4282,23 +4703,49 @@ Asynchronous operations produce results after a delay. Annotate them with postco
   axag-entity="report"
   axag-action-type="write"
   axag-required-parameters='["report_type","date_range"]'
-  axag-risk-level="none"
+  axag-risk-level="low"
+  axag-idempotent="false"
   axag-async="true"
-  axag-async-polling-endpoint="/api/reports/{report_id}/status"
-  axag-async-estimated-duration="30s"
   axag-postconditions='["report_ready"]'
+  axag-description="Starts generating a report; it is ready when report.get_status returns complete"
 >Generate Report</button>
+
+<button
+  axag-intent="report.get_status"
+  axag-entity="report"
+  axag-action-type="read"
+  axag-required-parameters='["report_id"]'
+  axag-risk-level="none"
+  axag-idempotent="true"
+>Check Status</button>
 ```
 
-The agent runtime should poll the status endpoint rather than blocking on the initial invocation.
+`axag-async` is carried into the manifest as `async: true` and into the generated tool's metadata. The agent should then poll the companion read action rather than blocking on, or retrying, the call that started the work.
+
+## Polling Hints
+
+AXAG 1.1 has no attribute for a polling endpoint or an expected duration. Expose status as its own read action, as above, which every agent can already call. If you also want to publish hints, use a [namespaced extension](/docs/specification/namespacing) — `axag-x-acme-poll-interval="5s"` — though AXAG tooling ignores extensions, so the hints reach only the agents you tell about them. Polling hints as manifest fields are a [proposed pattern](/docs/examples/proposed-vs-normative).
 
 ## Annotating Composite Flows
 
 Source: https://axag.org/docs/authoring-guide/annotating-composite-flows
 
-Composite flows combine multiple operations into a logical workflow. Each step is annotated individually with workflow attributes linking them.
+Composite flows combine multiple operations into a logical workflow — validate a cart, choose shipping, pay. Annotate each step as its own action, and link them through state:
 
-Use `axag-workflow-id` to group steps and `axag-workflow-step` to declare order. Preconditions and postconditions chain steps automatically.
+```html
+<button axag="read:cart.validate!none" axag-postconditions='["cart_valid"]'>Validate Cart</button>
+
+<button axag="write:order.select_shipping!low?idempotent"
+  axag-preconditions='["cart_valid"]'
+  axag-postconditions='["shipping_selected"]'>Select Shipping</button>
+
+<button axag="write:payment.confirm!high?confirm&idempotent=false"
+  axag-preconditions='["shipping_selected"]'>Confirm Payment</button>
+```
+
+A postcondition of one step that matches a precondition of the next tells an agent the order to call them in. Nothing enforces that order for you: each step's handler or API must still refuse a call whose precondition is false, with `AXAG_PRECONDITION_FAILED`.
+
+`axag-workflow-id` and `axag-workflow-step` may also be used to group and number the steps for human readers, but they aren't carried into the manifest in 1.1. See [Multi-Step Workflows](/docs/authoring-guide/annotating-multi-step-workflows).
 
 ## Annotating Embedded Widgets
 
@@ -4308,25 +4755,37 @@ Third-party widgets (payment forms, maps, calendars) embedded in your applicatio
 
 ```html title="Third-party widget — Stripe payment" showLineNumbers
 <div
+  role="group"
+  aria-label="Payment details"
   axag-intent="payment.collect"
   axag-entity="payment"
   axag-action-type="write"
   axag-required-parameters='["amount","currency","payment_method"]'
   axag-risk-level="high"
   axag-confirmation-required="true"
+  axag-idempotent="false"
   axag-scope="user"
-  axag-widget-type="third-party"
-  axag-widget-provider="stripe"
+  axag-x-acme-widget-provider="stripe"
 >
   <!-- Stripe Elements iframe renders here -->
 </div>
 ```
 
-The container annotation describes the semantic operation even though the internal widget implementation is opaque.
+The container annotation describes the semantic operation even though the internal widget implementation is opaque. Give the container an accessible name, as with any annotated element — `axag-lint` reports one without it (AXAG-LINT-031).
+
+AXAG has no attribute for the widget's vendor. If your team wants to record it, use a [namespaced extension](/docs/specification/namespacing) such as `axag-x-acme-widget-provider`; agents and tooling ignore extensions they don't recognise.
+
+## Parameters Inside an Iframe
+
+Fields inside a cross-origin iframe can't be harvested — the page can't read them. Declare every parameter on the container, as above, and let the widget's own API do the work when the action runs.
 
 ## Annotation Reuse Through Component Libraries
 
 Source: https://axag.org/docs/authoring-guide/annotation-reuse
+
+:::tip Reach for the bindings first
+[`@web-axag/react`](/docs/frameworks/react), [`@web-axag/vue`](/docs/frameworks/vue) and [`@web-axag/angular`](/docs/frameworks/angular) attach a `defineAction({...})` spec to a component, register it while the component is mounted, and put the attributes in the DOM. A wrapper like the one below is still useful when you want a design-system component to carry annotations without depending on the SDK.
+:::
 
 In React, Vue, and other component-based frameworks, create annotated wrapper components for reuse.
 
@@ -7671,32 +8130,34 @@ When `axag-idempotent="false"` and side effects are declared, the agent knows:
 
 ## Error Semantics
 
-AXAG error codes provide structured failure information:
+A refused call comes back in one flat shape, with a code an agent can branch on:
 
-```json title="AXAG error response — structured failure info"
+```json title="AXAG refusal — structured failure info"
 {
-  "error": {
-    "code": "AXAG-ERR-PRECONDITION",
-    "message": "Precondition not met: cart must not be empty",
-    "retryable": true,
-    "recovery_action": "Ensure cart has items before placing order",
-    "failed_precondition": "cart_not_empty"
-  }
+  "error": "AXAG_PRECONDITION_FAILED",
+  "status": 412,
+  "message": "Precondition not met: cart must not be empty",
+  "intent": "order.place",
+  "details": { "failed_precondition": "cart_not_empty" }
 }
 ```
 
-### Error Categories
+### Deciding Whether to Retry
 
-| Error Code | Meaning | Retryable | Agent Action |
-|-----------|---------|-----------|-------------|
-| `AXAG-ERR-PRECONDITION` | Precondition not met | Yes (after fixing state) | Satisfy precondition, then retry |
-| `AXAG-ERR-PARAMETER` | Invalid or missing parameter | Yes (with corrected params) | Fix parameters, then retry |
-| `AXAG-ERR-UNAUTHORIZED` | Insufficient permissions | No | Escalate to human |
-| `AXAG-ERR-RATE-LIMIT` | Rate limit exceeded | Yes (after delay) | Wait and retry with backoff |
-| `AXAG-ERR-CONFLICT` | Concurrent modification | Yes (after refresh) | Refresh state, then retry |
-| `AXAG-ERR-NOT-FOUND` | Entity does not exist | No | Report to user |
-| `AXAG-ERR-SERVER` | Transient server error | Yes (with backoff) | Retry with exponential backoff |
-| `AXAG-ERR-PERMANENT` | Permanent failure | No | Escalate to human |
+The code says what went wrong; the annotation says whether trying again is safe.
+
+| Error Code | Retry? | Agent Action |
+|-----------|--------|-------------|
+| `AXAG_PRECONDITION_FAILED` | After fixing state | Satisfy the precondition, then retry |
+| `AXAG_MISSING_PARAM`, `AXAG_INVALID_TYPE`, `AXAG_OUT_OF_RANGE`, `AXAG_INVALID_ENUM`, `AXAG_INVALID_FORMAT` | With corrected parameters | Fix parameters, then retry |
+| `AXAG_CONFIRMATION_MISSING` | After the person confirms | Ask the person, then retry with the new token |
+| `AXAG_APPROVAL_MISSING` | After approval is granted | Request approval, then retry |
+| `AXAG_ROLE_INSUFFICIENT`, `AXAG_APPROVAL_INVALID` | No | Escalate to a person |
+| `AXAG_SCOPE_VIOLATION`, `AXAG_TENANT_BOUNDARY` | No | Stop — the call was out of bounds |
+| `AXAG_INTENT_NOT_FOUND` | After refreshing tools | The action may no longer be on the page |
+| Network failure or HTTP 5xx | Only if `idempotent` is `true` | Retry with exponential backoff; otherwise check state first |
+
+Transport failures — timeouts, 5xx — aren't AXAG refusals, and they are where `axag-idempotent` matters most: the agent can't tell whether a non-idempotent write happened, so it should read the entity's state before trying again. See the [Error Codes Reference](/docs/reference/error-codes).
 
 ## Recovery Flow Example
 
@@ -7732,13 +8193,14 @@ AXAG error codes provide structured failure information:
   axag-intent="payment.charge"
   axag-entity="payment"
   axag-action-type="write"
-  axag-required-parameters='["cart_id","payment_method_id","amount"]'
+  axag-required-parameters='["cart_id","payment_method_id",{"name":"amount","type":"number","min":0.01}]'
   axag-preconditions='["inventory_reserved","payment_method_valid"]'
   axag-postconditions='["payment_processed"]'
   axag-idempotent="false"
   axag-risk-level="high"
   axag-confirmation-required="true"
   axag-side-effects='["payment_charged"]'
+  axag-description="Charge the payment method for the cart. Not idempotent: check payment status before retrying"
 >Process Payment</button>
 ```
 
@@ -7747,31 +8209,40 @@ AXAG error codes provide structured failure information:
 2. If Step 2 fails → retry (idempotent with same cart_id)
 3. If Step 3 fails → **do NOT retry** — check payment status first, then decide
 
-## Semantic Manifest with Retry Metadata
+## Semantic Manifest
 
-```json title="Manifest — payment.charge with retry metadata" showLineNumbers
+Retry behaviour isn't a separate block in the manifest. It follows from fields the action already has — `idempotent`, `side_effects`, `preconditions` — and the description is the place for a recovery hint written for the agent.
+
+```json title="Manifest — payment.charge" showLineNumbers
 {
   "intent": "payment.charge",
   "entity": "payment",
   "action_type": "write",
-  "idempotent": false,
+  "operation_id": "payment_charge",
+  "description": "Charge the payment method for the cart. Not idempotent: check payment status before retrying",
+  "required_parameters": [
+    { "name": "cart_id", "type": "string" },
+    { "name": "payment_method_id", "type": "string" },
+    { "name": "amount", "type": "number", "min": 0.01 }
+  ],
+  "optional_parameters": [],
   "risk_level": "high",
+  "confirmation_required": true,
+  "idempotent": false,
   "side_effects": ["payment_charged"],
-  "error_handling": {
-    "retryable_errors": ["AXAG-ERR-RATE-LIMIT", "AXAG-ERR-SERVER"],
-    "non_retryable_errors": ["AXAG-ERR-PARAMETER", "AXAG-ERR-UNAUTHORIZED"],
-    "max_retries": 0,
-    "recovery_hint": "Check payment status before retrying"
-  }
+  "preconditions": ["inventory_reserved", "payment_method_valid"],
+  "postconditions": ["payment_processed"]
 }
 ```
 
-## Generated MCP Tool
+## Generated WebMCP Tool
+
+`idempotent: false` becomes `idempotentHint: false`, which agent hosts read to decide whether a failed call may be retried automatically.
 
 ```json title="Tool — payment_charge (no auto-retry)" showLineNumbers
 {
   "name": "payment_charge",
-  "description": "Process payment — NOT idempotent, do not retry without checking status",
+  "description": "Charge the payment method for the cart. Not idempotent: check payment status before retrying",
   "inputSchema": {
     "type": "object",
     "properties": {
@@ -7781,12 +8252,22 @@ AXAG error codes provide structured failure information:
     },
     "required": ["cart_id", "payment_method_id", "amount"]
   },
-  "safety": {
-    "risk_level": "high",
-    "idempotent": false,
-    "confirmation_required": true,
-    "side_effects": ["payment_charged"],
-    "retry_policy": "no_auto_retry"
+  "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "axag": {
+      "action_type": "write",
+      "risk_level": "high",
+      "idempotent": false,
+      "confirmation_required": true,
+      "approval_required": false,
+      "source_intent": "payment.charge",
+      "source_entity": "payment",
+      "side_effects": ["payment_charged"],
+      "preconditions": ["inventory_reserved", "payment_method_valid"],
+      "postconditions": ["payment_processed"]
+    }
   }
 }
 ```
@@ -7835,31 +8316,34 @@ Static validation checks AXAG annotations at build time — before the page is s
 - `axag-confirmation-required="true"` is set when `axag-risk-level` is `high` or `critical`
 - `axag-approval-required="true"` has a corresponding `axag-approval-roles`
 - `axag-idempotent` is declared for all write/delete operations
-- `axag-scope` is declared for tenant-sensitive operations
+- `axag-scope` is declared for delete operations and for actions with role requirements
+- Tenant-scoped actions don't take the tenant as a parameter
 
 ### Cross-Reference Validation
-- All intents referenced in annotations exist in the Semantic Manifest
-- Parameter names in annotations match the manifest parameter definitions
-- Entity names are consistent between annotations and manifest
+- With `--manifest`, every intent in the source must exist in that manifest (AXAG-LINT-010) — useful when the manifest is reviewed and committed separately from the code
+
+When the manifest is generated from the same source on every build, as `@web-axag/compiler` does, the two can't drift and this check has nothing to find.
 
 ## Validation Tool Example
 
 ```bash title="Static validation output"
-# Run static validation
 npx axag-lint src --manifest axag-manifest.json
-
-# Output
-✓ 47 annotations found
-✓ All structural checks passed
-✓ All semantic checks passed
-✗ 2 cross-reference warnings:
-  - src/components/Cart.tsx:42 — intent "cart.remove_item" not in manifest
-  - src/pages/Admin.tsx:108 — parameter "user_role" not declared in manifest
 ```
+
+```text
+src/components/Cart.html
+  12:5  warning  axag-action-type="delete" should declare axag-idempotent  AXAG-LINT-007
+  12:5  warning  Intent "cart.remove_item" not found in manifest  AXAG-LINT-010
+  12:5  warning  Delete action should declare axag-scope to indicate blast radius  AXAG-LINT-021
+
+✗ 3 warnings in 1 file
+```
+
+Findings are grouped by file, with line and column, severity, message and rule ID. The exit code is non-zero when there are errors.
 
 ## Integration with Build Tools
 
-`@axag/compiler` reads annotations during the build and fails it on error diagnostics, so a broken annotation never reaches a deploy. See [Build-Time Compilation](/docs/tool-generation/build-time-compilation).
+`@web-axag/compiler` reads annotations during the build and fails it on error diagnostics, so a broken annotation never reaches a deploy. See [Build-Time Compilation](/docs/tool-generation/build-time-compilation).
 
 ### Vite
 ```typescript title="vite.config.ts"
@@ -7870,18 +8354,18 @@ npx axag-lint src --manifest axag-manifest.json
 
 ### webpack
 ```javascript title="webpack.config.js"
-const axag = require('@axag/compiler/webpack').default;
+const axag = require('@web-axag/compiler/webpack').default;
 
 module.exports = {
   plugins: [axag({ failOnError: true })],
 };
 ```
 
-Rollup, Rspack and esbuild import from `@axag/compiler/rollup`, `/rspack` and `/esbuild`.
+Rollup, Rspack and esbuild import from `@web-axag/compiler/rollup`, `/rspack` and `/esbuild`.
 
 ## Lint Rules
 
-`axag-lint` ships 35 rules, grouped by what they protect:
+`axag-lint` ships 37 rules, grouped by what they protect:
 
 | Rules | Cover |
 |-------|-------|
@@ -7896,8 +8380,9 @@ Rollup, Rspack and esbuild import from `@axag/compiler/rollup`, `/rspack` and `/
 | 027–028 | Macro syntax and macro/longhand conflicts |
 | 029–032 | Harvesting: unnamed controls, schema drift, accessible names, labels |
 | 033 | Annotations that exist only at runtime |
+| 036–037 | Server enforcement: tenant identifiers exposed as parameters, high-risk actions no server enforces |
 
-Each has a default severity you can change per project. See [CI/CD Linting](/docs/validation/ci-linting) for the configuration file, and the [axag-lint README](https://www.npmjs.com/package/@web-axag/axag-lint) for the full list.
+Each has a default severity you can change per project. See [CI/CD Linting](/docs/validation/ci-linting) for the configuration file, and the [Error Codes Reference](/docs/reference/error-codes#validation-error-codes) for every rule and its default severity.
 
 ## Project-Specific Severities
 
@@ -7951,73 +8436,81 @@ After execution, the runtime verifies:
 - **Side-effects**: Declared side-effects occurred as expected
 - **Error semantics**: Error responses follow the declared error schema
 
-## Implementation Pattern
+## Implementation
 
-```typescript title="AXAGRuntimeValidator — interface" showLineNumbers
-interface AXAGRuntimeValidator {
-  validatePreExecution(
-    toolCall: ToolCall,
-    manifest: ManifestAction
-  ): ValidationResult;
+[`@web-axag/server`](/docs/frameworks/safety) enforces the safety half of these checks against the generated manifest:
 
-  validateConfirmation(
-    toolCall: ToolCall,
-    confirmationToken: string | null
-  ): ValidationResult;
+```typescript title="Server-side enforcement" showLineNumbers
 
-  validateApproval(
-    toolCall: ToolCall,
-    approvalToken: string | null,
-    approverRole: string
-  ): ValidationResult;
+const enforcer = createEnforcer({
+  manifest,
+  approvals: ({ action, actor }) => approvals.exists(action.intent, actor.id),
+  csrfOf: request => request.session?.csrfToken,
+  audit: record => log.info(record),
+});
 
-  validatePostExecution(
-    toolCall: ToolCall,
-    result: ExecutionResult,
-    manifest: ManifestAction
-  ): ValidationResult;
-}
-
-interface ValidationResult {
-  valid: boolean;
-  errors: ValidationError[];
-  warnings: ValidationWarning[];
+try {
+  await enforcer.check({
+    intent: 'cart.begin_checkout',
+    parameters: request.body,
+    headers: request.headers,
+    actor: { id: session.userId, tenant: session.tenant, roles: session.roles },
+  });
+} catch (error) {
+  if (error instanceof AxagError) return response.status(error.status).json(error.toRefusal());
+  throw error;
 }
 ```
+
+What each layer checks today:
+
+| Check | Where |
+|-------|-------|
+| Confirmation (single-use token bound to intent, parameters and actor) | `@web-axag/server`; the page asks the person first |
+| Approval and `approval_roles` | `@web-axag/server`, through your `approvals` hook |
+| `required_roles` | `@web-axag/server` |
+| Tenant scope and `tenant_boundary` | `@web-axag/server`; the page removes tenant parameters from the agent's schema |
+| CSRF | `@web-axag/server`; the page attaches the token |
+| Parameter types, enums and ranges | The input schema the agent sees, and your API's own validation |
+| Preconditions and postconditions | Your application — they are written for people and agents to reason about, not for a machine to evaluate |
 
 ## Error Response Format
 
-When runtime validation fails, the error response follows a standard format:
+A refused call answers with the error code as `error`, the HTTP status it carries, and a message a person can act on:
 
-```json title="Validation error response"
+```json title="Refusal"
 {
-  "error": {
-    "code": "AXAG_VALIDATION_ERROR",
-    "type": "precondition_failed",
-    "message": "Precondition not met: cart must have at least one item",
-    "details": {
-      "intent": "cart.begin_checkout",
-      "failed_precondition": "cart must have at least one item",
-      "suggestion": "Add items to cart before beginning checkout"
-    }
-  }
+  "error": "AXAG_CONFIRMATION_MISSING",
+  "status": 428,
+  "message": "\"cart.begin_checkout\" needs a confirmation token",
+  "intent": "cart.begin_checkout"
 }
 ```
 
-## Common Runtime Validation Errors
+`details` is added where there is more to say — the roles that may approve, or the parameter that pointed at another tenant:
 
-| Error Code | Type | Description |
-|-----------|------|-------------|
-| `AXAG_MISSING_PARAM` | `parameter_error` | Required parameter not provided |
-| `AXAG_INVALID_TYPE` | `parameter_error` | Parameter value has wrong type |
-| `AXAG_OUT_OF_RANGE` | `constraint_error` | Numeric value outside min/max |
-| `AXAG_INVALID_ENUM` | `constraint_error` | Value not in allowed enum set |
-| `AXAG_PRECONDITION_FAILED` | `precondition_error` | Precondition check failed |
-| `AXAG_CONFIRMATION_MISSING` | `safety_error` | Confirmation required but not provided |
-| `AXAG_APPROVAL_MISSING` | `safety_error` | Approval required but not provided |
-| `AXAG_SCOPE_VIOLATION` | `security_error` | Operation outside declared scope |
-| `AXAG_TENANT_BOUNDARY` | `security_error` | Cross-tenant access attempt |
-| `AXAG_ROLE_INSUFFICIENT` | `authorization_error` | Caller lacks required role |
+```json title="Refusal with details"
+{
+  "error": "AXAG_ROLE_INSUFFICIENT",
+  "status": 403,
+  "message": "\"audit_log.purge\" requires one of: auditor",
+  "intent": "audit_log.purge",
+  "details": { "required_roles": ["auditor"] }
+}
+```
+
+The same shape comes back from the page's enforcers when a person declines, so an agent handles a refusal the same way wherever it happened.
+
+## Error Codes
+
+Every code, its HTTP status and which layer raises it is listed in the [Error Codes Reference](/docs/reference/error-codes). Codes are exported from `@web-axag/core` as `AXAG_ERRORS`, so your own validation can refuse in the same shape:
+
+```typescript
+
+if (!body.cart_id) {
+  throw new AxagError('AXAG_MISSING_PARAM', 'cart_id is required', { intent: 'cart.begin_checkout' });
+}
+```
 
 ## CI/CD Linting
 
@@ -8109,8 +8602,9 @@ Each rule takes `"error"`, `"warning"`, `"info"` or `"off"`. Run `npx axag-lint 
 | 027–028 | Macro syntax and macro/longhand conflicts |
 | 029–032 | Harvesting: unnamed controls, schema drift, accessible names, labels |
 | 033 | Annotations that only exist at runtime |
+| 036–037 | Server enforcement: tenant identifiers exposed as parameters, high-risk actions no server enforces |
 
-The full list with default severities is in the [axag-lint README](https://www.npmjs.com/package/@web-axag/axag-lint).
+The full list with default severities is in the [Error Codes Reference](/docs/reference/error-codes#validation-error-codes).
 
 ## Pre-Commit Hook
 
@@ -8155,9 +8649,9 @@ jobs:
         with: { fetch-depth: 0 }
 
       - name: Generate the manifest
-        run: npx --yes @web-axag/axag-cli generate src --manifest axag-manifest.json --validate
+        run: npx --yes @web-axag/cli generate src --manifest axag-manifest.json --validate
 
-      - uses: axag-cli/axag-sdk/.github/actions/axag-lint@main
+      - uses: web-axag/sdk/.github/actions/axag-lint@main
         with:
           path: src
           manifest: axag-manifest.json
@@ -8330,19 +8824,19 @@ None of these outcomes are acceptable in production. **Contradictions MUST be de
 
 ### 1. Risk Level vs Action Type
 
-A `read` operation annotated with `high` risk:
+A `read` operation annotated with `critical` risk:
 
-```html title="❌ Contradictory — read with high risk"
-<!-- ❌ Contradictory: reads are inherently safe -->
+```html title="❌ Contradictory — read with critical risk"
+<!-- ❌ Contradictory: reads don't destroy anything -->
 <button
   axag-intent="product.search"
   axag-entity="product"
   axag-action-type="read"
-  axag-risk-level="high"
+  axag-risk-level="critical"
 >Search</button>
 ```
 
-**Rule:** `AXAG-LINT-010` — Read operations **SHOULD NOT** have risk level above `low`.
+**Rule:** `AXAG-LINT-013` (error) — a `read` operation **MUST NOT** be `critical`. `AXAG-LINT-025` (info) also notes a read above `low`, which is sometimes right for a sensitive export.
 
 **Fix:**
 ```html title="✅ Fix — risk level matches action type"
@@ -8354,45 +8848,10 @@ A `read` operation annotated with `high` risk:
 >Search</button>
 ```
 
-### 2. Idempotent vs Side Effects
-
-An operation declared idempotent but with non-idempotent side effects:
-
-```html title="❌ Contradictory — idempotent with non-idempotent side effects"
-<!-- ❌ Contradictory: email_sent is not idempotent -->
-<button
-  axag-intent="order.place"
-  axag-entity="order"
-  axag-action-type="write"
-  axag-idempotent="true"
-  axag-side-effects='["email_sent","inventory_deducted"]'
-  axag-risk-level="high"
->Place Order</button>
-```
-
-**Rule:** `AXAG-LINT-011` — Idempotent operations **MUST NOT** declare non-idempotent side effects.
-
-**Fix:** Either mark as non-idempotent or ensure side effects are truly idempotent (e.g., "email_sent" becomes "email_queued_idempotent").
-
-### 3. Confirmation Not Required on Destructive Actions
-
-```html title="❌ Contradictory — delete without confirmation"
-<!-- ❌ Contradictory: delete without confirmation -->
-<button
-  axag-intent="user.delete"
-  axag-entity="user"
-  axag-action-type="delete"
-  axag-risk-level="critical"
-  axag-confirmation-required="false"
->Delete User</button>
-```
-
-**Rule:** `AXAG-LINT-012` — Delete operations with risk level `high` or `critical` **MUST** require confirmation.
-
-### 4. Approval Without Roles
+### 2. Approval Without Roles
 
 ```html
-<!-- ❌ Contradictory: approval required but no roles specified -->
+<!-- ❌ Contradictory: approval required but nobody can give it -->
 <button
   axag-intent="expense.approve"
   axag-entity="expense"
@@ -8402,33 +8861,72 @@ An operation declared idempotent but with non-idempotent side effects:
 >Approve</button>
 ```
 
-**Rule:** `AXAG-LINT-013` — When `axag-approval-required="true"`, `axag-approval-roles` **MUST** be specified.
+**Rule:** `AXAG-LINT-012` (error) — when `axag-approval-required="true"`, `axag-approval-roles` **MUST** be specified.
 
-### 5. Preconditions Contradicting Action Type
+### 3. Preconditions Contradicting Action Type
 
 ```html
-<!-- ❌ Contradictory: create with "entity must exist" precondition -->
+<!-- ❌ Contradictory: create with "must exist" precondition -->
 <button
   axag-intent="product.create"
   axag-entity="product"
   axag-action-type="write"
+  axag-risk-level="low"
+  axag-idempotent="false"
   axag-preconditions='["product must exist"]'
 >Create Product</button>
 ```
 
-**Rule:** `AXAG-LINT-014` — Create operations **SHOULD NOT** require the target entity to already exist.
+**Rule:** `AXAG-LINT-014` (warning) — a `write` whose preconditions say the entity "must exist" or "already exists" is either an update, or the precondition is wrong.
+
+### 4. Navigation With Side Effects
+
+```html
+<!-- ❌ Contradictory: navigation that changes state -->
+<a
+  href="/logout"
+  axag-intent="session.end"
+  axag-entity="session"
+  axag-action-type="navigate"
+  axag-side-effects='["session_destroyed"]'
+>Log out</a>
+```
+
+**Rule:** `AXAG-LINT-015` (warning) — `navigate` means changing the view. An action with side effects is a `write` or a `delete`.
+
+### 5. Tenant Roles Outside Tenant Scope
+
+```html
+<!-- ❌ Contradictory: a tenant_ role approving a global action -->
+<button
+  axag-intent="billing.adjust"
+  axag-entity="billing"
+  axag-action-type="write"
+  axag-risk-level="high"
+  axag-idempotent="false"
+  axag-confirmation-required="true"
+  axag-scope="global"
+  axag-approval-required="true"
+  axag-approval-roles='["tenant_admin"]'
+>Adjust Billing</button>
+```
+
+**Rule:** `AXAG-LINT-016` (warning) — a `tenant_`-prefixed approval role with a non-tenant scope means one of the two is wrong.
+
+### Also Worth Checking by Hand
+
+Some contradictions no rule can see. An operation declared `axag-idempotent="true"` whose side effects include `email_sent` is one: repeating it sends another email, so either the declaration or the side effect is wrong. `AXAG-LINT-017` only catches the opposite case — a non-idempotent mutation that declares no side effects at all.
 
 ## Detection Rules Summary
 
-| Rule | Contradiction | Severity |
-|------|--------------|----------|
-| `AXAG-LINT-010` | Read + high/critical risk | Warning |
-| `AXAG-LINT-011` | Idempotent + non-idempotent side effects | Error |
-| `AXAG-LINT-012` | Destructive + no confirmation (high/critical) | Error |
-| `AXAG-LINT-013` | Approval required + no approval roles | Error |
-| `AXAG-LINT-014` | Create + "must exist" precondition | Warning |
+| Rule | Contradiction | Default severity |
+|------|--------------|------------------|
+| `AXAG-LINT-012` | Approval required + no approval roles | Error |
+| `AXAG-LINT-013` | Read + critical risk | Error |
+| `AXAG-LINT-014` | Write + "must exist" precondition | Warning |
 | `AXAG-LINT-015` | Navigate + side effects declared | Warning |
-| `AXAG-LINT-016` | Non-tenant scope + tenant-only roles | Error |
+| `AXAG-LINT-016` | Tenant-only approval roles + non-tenant scope | Warning |
+| `AXAG-LINT-025` | Read + risk above `low` | Info |
 
 ## CI Integration
 
@@ -8462,28 +8960,20 @@ These are exactly the failure modes AXAG is designed to eliminate.
 
 ## What Counts as "Missing Intent"
 
-An element has a missing intent if it:
+`axag-lint` treats an element as interactive if it is:
 
-1. Is an interactive HTML element (`<button>`, `<a>`, `<input type="submit">`, `<form>`)
-2. Has a click handler, form action, or navigation target
-3. Does **not** have an `axag-intent` attribute
+- a `<button>`, `<a>`, `<input>`, `<select>`, `<textarea>` or `<form>`
+- any element with an `onclick` handler, `role="button"` or `type="submit"`
 
-### Elements That MUST Be Annotated
+An interactive element without `axag-intent` is reported by **AXAG-LINT-001**, with three exceptions where the element is already covered:
 
-| Element | Condition | Required |
-|---------|-----------|----------|
-| `<button>` | Always | Yes |
-| `<a>` with `href` | When performing an action (not just navigation) | Recommended |
-| `<input type="submit">` | Always | Yes |
-| `<form>` submit buttons | Always | Yes |
-| Elements with `onclick` | Always | Yes |
-| Elements with `role="button"` | Always | Yes |
+| Not reported | Why |
+|--------------|-----|
+| The submit button of an annotated `<form>` | The form's annotation describes the action |
+| A form that feeds an annotated button | The button's annotation describes the action, and the form's controls become its parameters |
+| An element with a bound spec (`axag={spec}`, `:axag`, `v-axag`, `[axag]`) | It is annotated at runtime; AXAG-LINT-033 reports that instead |
 
-### Elements That MAY Be Skipped
-
-- Pure navigational links (`<a href="/about">`)
-- Decorative elements
-- Elements inside annotated parents (if context inheritance applies)
+Plain navigation links are interactive too. Annotate the ones an agent should be able to follow (`axag="navigate:..."`), and turn AXAG-LINT-001 down for a project where most links aren't actions — see [Opting Out](#opting-out).
 
 ## Detection Rules
 
@@ -8491,9 +8981,9 @@ An element has a missing intent if it:
 
 ```
 Rule: AXAG-LINT-001
-Severity: Error
-Message: Interactive element missing axag-intent attribute
-Fix: Add axag-intent with the semantic operation identifier
+Default severity: error
+Message: Interactive <button> element is missing axag-intent attribute
+Fix: Add axag-intent, or an axag macro, with the semantic operation identifier
 ```
 
 **Failing example:**
@@ -8510,23 +9000,26 @@ Fix: Add axag-intent with the semantic operation identifier
   axag-intent="order.place"
   axag-entity="order"
   axag-action-type="write"
+  axag-risk-level="high"
+  axag-confirmation-required="true"
+  axag-idempotent="false"
 >Place Order</button>
 ```
 
-### AXAG-LINT-001a: Missing Entity
+### AXAG-LINT-002: Missing Entity
 
 ```
-Rule: AXAG-LINT-001a
-Severity: Error
+Rule: AXAG-LINT-002
+Default severity: error
 Message: Element has axag-intent but missing axag-entity
-Fix: Add axag-entity with the domain object name
+Fix: Add axag-entity with the domain object name, or use the macro, which implies it from the intent
 ```
 
-### AXAG-LINT-001b: Missing Action Type
+### AXAG-LINT-003: Missing Action Type
 
 ```
-Rule: AXAG-LINT-001b
-Severity: Error
+Rule: AXAG-LINT-003
+Default severity: error
 Message: Element has axag-intent but missing axag-action-type
 Fix: Add axag-action-type with read, write, delete, or navigate
 ```
@@ -8548,33 +9041,29 @@ Annotation Coverage = (annotated interactive elements / total interactive elemen
 | Comprehensive | 76–99% | Production-ready |
 | Complete | 100% | Full semantic contract |
 
-## Scanning Approach
+`axag-lint` doesn't report a coverage percentage. The count of AXAG-LINT-001 findings in its JSON output (`--format json`) is the number of uncovered elements, which is the figure to drive down.
 
-A missing-intent scanner should:
+## Opting Out
 
-1. Parse the HTML/JSX/TSX file
-2. Identify all interactive elements
-3. Check each for `axag-intent`
-4. Report unannotated elements with file path and line number
-5. Exclude elements marked with `axag-skip="true"` (opt-out)
+There is no per-element opt-out attribute. Where a whole category of element shouldn't be annotated, change the rule's severity or exclude the files:
 
-### Opt-Out Mechanism
-
-For elements that intentionally lack annotations (e.g., purely decorative interactions):
-
-```html
-<!-- Explicitly excluded from annotation requirements -->
-<button axag-skip="true" onclick="toggleTheme()">🌙</button>
+```json title=".axaglintrc.json"
+{
+  "exclude": ["node_modules/**", "dist/**", "src/marketing/**"],
+  "rules": {
+    "AXAG-LINT-001": "warning"
+  }
+}
 ```
+
+For an existing codebase, a [baseline](/docs/validation/ci-linting) is usually better than lowering severity: current findings are recorded and ignored, and only new unannotated elements fail the build.
 
 ## CI Integration
 
 ```yaml
 - name: Check for missing intents
-  run: npx axag-lint src --format github
+  run: npx axag-lint src --format github --baseline
 ```
-
-The `--threshold` flag sets the minimum annotation coverage percentage. The build fails if coverage drops below this threshold.
 
 ## Next Steps
 
@@ -8614,23 +9103,31 @@ A mutation is considered unsafely exposed when any of these conditions are true:
 
 ## Detection Rules
 
-### AXAG-LINT-003: Unsafe Mutate Without Confirmation
+### AXAG-LINT-023: Mutation Without a Risk Level
 
 ```
-Rule: AXAG-LINT-003
-Severity: Error
-Message: Mutation operation with risk-level high/critical lacks confirmation requirement
-Fix: Add axag-confirmation-required="true"
+Rule: AXAG-LINT-023
+Default severity: error
+Message: axag-action-type="write" must declare axag-risk-level
+Fix: Add axag-risk-level appropriate to the operation's impact
 ```
 
 **Failing example:**
-```html title="❌ Unsafe — no confirmation on critical delete"
+```html title="❌ Unsafe — no risk level on a delete"
 <button
   axag-intent="account.delete"
   axag-entity="account"
   axag-action-type="delete"
-  axag-risk-level="critical"
 >Delete Account</button>
+```
+
+### AXAG-LINT-006: High Risk Without Confirmation
+
+```
+Rule: AXAG-LINT-006
+Default severity: warning
+Message: axag-risk-level="critical" should have axag-confirmation-required="true"
+Fix: Add axag-confirmation-required="true"
 ```
 
 **Passing example:**
@@ -8641,66 +9138,60 @@ Fix: Add axag-confirmation-required="true"
   axag-action-type="delete"
   axag-risk-level="critical"
   axag-confirmation-required="true"
+  axag-approval-required="true"
+  axag-approval-roles='["super_admin"]'
   axag-preconditions='["no active subscriptions"]'
   axag-postconditions='["account deactivated","data retention started"]'
   axag-idempotent="true"
->Delete Account</button>
-```
-
-### AXAG-LINT-008: Delete Without Preconditions
-
-```
-Rule: AXAG-LINT-008
-Severity: Warning
-Message: Delete operation has no preconditions declared
-Fix: Add axag-preconditions with state requirements
-```
-
-### AXAG-LINT-009: Financial Mutation Without Approval
-
-```
-Rule: AXAG-LINT-009
-Severity: Error
-Message: Mutation with financial side effects lacks approval requirement
-Fix: Add axag-approval-required="true" and axag-approval-roles
-```
-
-**Example — financial mutation:**
-```html
-<button
-  axag-intent="refund.process"
-  axag-entity="refund"
-  axag-action-type="write"
-  axag-required-parameters='["order_id","amount"]'
-  axag-risk-level="high"
-  axag-side-effects='["payment_refund","accounting_adjustment"]'
-  axag-confirmation-required="true"
-  axag-approval-required="true"
-  axag-approval-roles='["finance_manager"]'
   axag-scope="tenant"
-  axag-idempotent="true"
->Process Refund</button>
+>Delete Account</button>
 ```
 
 ### AXAG-LINT-017: Missing Side Effects Declaration
 
 ```
 Rule: AXAG-LINT-017
-Severity: Warning
-Message: Non-idempotent mutation has no side-effects declared
+Default severity: warning
+Message: Non-idempotent write action should declare axag-side-effects
 Fix: Add axag-side-effects listing observable state changes
 ```
 
-## Risk-Level Enforcement Matrix
+A mutation that isn't idempotent, or doesn't say, must at least tell an agent what repeating it would do.
 
-| Action Type | Minimum Required Safety Metadata |
-|------------|----------------------------------|
-| `read` | None (risk should be `none` or `low`) |
-| `write` (low risk) | `risk-level` |
-| `write` (medium risk) | `risk-level`, `confirmation-required` |
-| `write` (high risk) | `risk-level`, `confirmation-required`, `preconditions` |
-| `delete` | `risk-level`, `confirmation-required`, `preconditions` |
-| `delete` (critical) | All of above + `approval-required`, `approval-roles` |
+### AXAG-LINT-021: Delete Without a Scope
+
+```
+Rule: AXAG-LINT-021
+Default severity: warning
+Message: Delete action should declare axag-scope to indicate blast radius
+Fix: Add axag-scope — how far does this deletion reach?
+```
+
+### AXAG-LINT-026: Safety Metadata Below the Declared Risk
+
+Each risk level asks for the metadata that makes it actionable — `critical` adds approval and approval roles. See [Risk-Level Validation](/docs/validation/risk-level-validation).
+
+### AXAG-LINT-037: No Server Enforcement
+
+```
+Rule: AXAG-LINT-037
+Default severity: warning
+Message: High-risk action has no server-side enforcement
+Fix: Enforce the intent with @web-axag/server, and point the linter at the list it produces
+```
+
+This is the rule that closes the gap the others can't: confirmation and tenant checks in the page only guide a cooperative agent. It reports nothing until `enforcedIntentsPath` in `.axaglintrc.json` points at the intents your server enforces. See [Safety Enforcers](/docs/frameworks/safety).
+
+## Safety Metadata by Action Type
+
+| Action Type | Metadata the linter expects |
+|------------|------------------------------|
+| `read` | Nothing; `critical` risk is an error (AXAG-LINT-013) |
+| `write` | `risk-level`, `idempotent`, plus `side-effects` when not idempotent |
+| `write` (medium) | + `confirmation-required` |
+| `write` (high) | + `preconditions`, and server enforcement |
+| `delete` | `risk-level` (normally `high` or above), `scope` |
+| `critical` (any) | + `approval-required`, `approval-roles` |
 
 ## CI Integration
 
@@ -8744,7 +9235,7 @@ Scope mismatches can cause:
 >List All Users</button>
 ```
 
-**Rule:** `AXAG-LINT-004` — Operations with role requirements **MUST** declare a scope.
+**Rule:** `AXAG-LINT-011` (warning) — an operation that names roles, approval roles or a tenant boundary **SHOULD** declare the scope those roles apply within.
 
 **Fix:**
 ```html title="✅ Fix — add tenant scope"
@@ -8770,7 +9261,7 @@ Scope mismatches can cause:
 >Update Profile</button>
 ```
 
-**Rule:** `AXAG-LINT-018` — Operations on personal entities **SHOULD** use `user` scope, not `global`.
+**Rule:** `AXAG-LINT-018` (warning) — operations on personal entities **SHOULD** use `user` scope, not `global`.
 
 **Fix:**
 ```html title="✅ Fix — use user scope"
@@ -8796,7 +9287,7 @@ Scope mismatches can cause:
 >Update Settings</button>
 ```
 
-**Rule:** `AXAG-LINT-019` — `superadmin` roles typically imply `global` scope. Verify if `tenant` is correct.
+**Rule:** `AXAG-LINT-019` (warning) — `superadmin` roles typically imply `global` scope. Verify that `tenant` is correct.
 
 ### 4. Cross-Entity Scope Inconsistency
 
@@ -8812,34 +9303,39 @@ When two operations on the same page operate on the same entity but declare diff
   axag-action-type="delete" axag-scope="global">Delete</button>
 ```
 
-**Rule:** `AXAG-LINT-020` — Operations on the same entity within a page **SHOULD** use consistent scope unless justified.
+**Rule:** `AXAG-LINT-020` (warning) — operations on the same entity within one file **SHOULD** use a consistent scope unless the difference is deliberate.
 
 ## Scope Hierarchy
 
 ```
 global
   └── tenant
-       └── team
-            └── user
+       └── user
+            └── public
 ```
 
 | Scope | Meaning | Typical Operations |
 |-------|---------|-------------------|
 | `global` | Platform-wide, all tenants | System settings, platform analytics |
 | `tenant` | Within a single tenant/organization | Team management, tenant config, business data |
-| `team` | Within a team or department | Team-specific dashboards, shared resources |
-| `user` | Personal to the current user | Profile, preferences, personal data |
+| `user` | Personal to the signed-in user | Profile, preferences, cart, personal data |
+| `public` | No authentication needed | Catalogue browsing, help pages |
+
+These four are the only values the manifest schema accepts. A narrower boundary — a team, a department — is `tenant` plus `axag-required-roles`.
 
 ## Detection Rules Summary
 
 | Rule | Mismatch | Severity |
 |------|----------|----------|
-| `AXAG-LINT-004` | Role requirements without scope | Error |
+| `AXAG-LINT-011` | Role or tenancy attributes without a scope | Warning |
 | `AXAG-LINT-018` | Global scope on personal operations | Warning |
 | `AXAG-LINT-019` | Scope/role hierarchy mismatch | Warning |
-| `AXAG-LINT-020` | Inconsistent scope on same entity | Warning |
-| `AXAG-LINT-021` | Delete operation without scope | Error |
-| `AXAG-LINT-022` | Tenant mutation with user scope | Error |
+| `AXAG-LINT-020` | Inconsistent scope on the same entity | Warning |
+| `AXAG-LINT-021` | Delete operation without scope | Warning |
+| `AXAG-LINT-022` | Tenant-level entity written with user scope | Warning |
+| `AXAG-LINT-036` | Tenant-scoped action that takes the tenant as a parameter | Error |
+
+Scope rules are warnings because only your domain knows the right boundary. AXAG-LINT-036 is an error: a tenant-scoped action that accepts the tenant as a parameter lets an agent name someone else's tenant, which [`@web-axag/server`](/docs/frameworks/safety) then has to refuse.
 
 ## CI Integration
 
@@ -8885,7 +9381,7 @@ Incorrect risk levels undermine the entire safety model:
 ```
 Rule: AXAG-LINT-023
 Severity: Error
-Message: Write or delete operation has no risk-level declared
+Message: axag-action-type="write" must declare axag-risk-level
 Fix: Add axag-risk-level appropriate to the operation's impact
 ```
 
@@ -8912,7 +9408,7 @@ Fix: Add axag-risk-level appropriate to the operation's impact
 ```
 Rule: AXAG-LINT-024
 Severity: Warning
-Message: Delete operation has risk-level below "high"
+Message: Delete action has axag-risk-level="low" — delete actions should typically be "high" or "critical"
 Fix: Verify risk level — most deletions should be "high" or "critical"
 ```
 
@@ -8921,37 +9417,41 @@ Fix: Verify risk level — most deletions should be "high" or "critical"
 ```
 Rule: AXAG-LINT-025
 Severity: Info
-Message: Read operation has risk-level above "low"
+Message: Read action has axag-risk-level="high" — read actions are typically "none" or "low"
 Fix: Verify — reads are normally "none" unless exposing sensitive data
 ```
 
-### AXAG-LINT-007: Unsupported Risk-Action Combination
+### AXAG-LINT-013: Critical Read
 
 ```
-Rule: AXAG-LINT-007
-Severity: Error
-Message: Invalid combination of risk-level and action-type
+Rule: AXAG-LINT-013
+Default severity: error
+Message: axag-action-type="read" contradicts axag-risk-level="critical" — read operations should not be critical risk
+Fix: Reads don't destroy anything — use "medium" or "high" for sensitive reads
 ```
 
-**Invalid combinations:**
+**Combinations to check:**
 
-| Action Type | Invalid Risk Levels | Reason |
-|------------|-------------------|--------|
-| `read` | `critical` | Reads should never be critical |
-| `navigate` | `high`, `critical` | Navigation should not be high-risk |
-| `delete` | `none` | Deletions always carry risk |
+| Action Type | Questionable Risk Level | Rule |
+|------------|------------------------|------|
+| `read` | `critical` | AXAG-LINT-013 (error) |
+| `read` | above `low` | AXAG-LINT-025 (info) |
+| `delete` | below `high` | AXAG-LINT-024 (warning) |
+| `navigate` | any, when side effects are declared | AXAG-LINT-015 (warning) |
 
 ### AXAG-LINT-026: Safety Metadata Mismatch
 
 The required safety metadata must be proportional to the risk level:
 
-| Risk Level | Required Safety Metadata |
-|-----------|------------------------|
+| Risk Level | Metadata AXAG-LINT-026 expects |
+|-----------|--------------------------------|
 | `none` | None |
 | `low` | `idempotent` recommended |
 | `medium` | `confirmation-required`, `idempotent` |
-| `high` | `confirmation-required`, `preconditions`, `idempotent`, `side-effects` |
-| `critical` | All of `high` + `approval-required`, `approval-roles` |
+| `high` | `confirmation-required`, `idempotent`, `preconditions` |
+| `critical` | All of `high`, plus `approval-required` and `approval-roles` |
+
+`side-effects` is asked for separately, by AXAG-LINT-017, whenever a mutation isn't idempotent.
 
 ```html
 <!-- ❌ High risk without required safety metadata -->
@@ -9013,9 +9513,9 @@ This page catalogs the most frequent AXAG validation failures, their causes, and
 
 ### 1. Missing Required Attributes
 
-**Error**: `AXAG-LINT-001: Element has axag-* attributes but is missing axag-intent`
+**Error**: `AXAG-LINT-001: Interactive <button> element is missing axag-intent attribute` — or `AXAG-LINT-002` / `AXAG-LINT-003` when the intent is there but the entity or action type isn't.
 
-**Cause**: An element has some `axag-*` attributes but is missing one of the three required attributes (`axag-intent`, `axag-entity`, `axag-action-type`).
+**Cause**: An interactive element carries no annotation, or is missing one of the three required attributes (`axag-intent`, `axag-entity`, `axag-action-type`).
 
 **Fix**: Add the missing attribute.
 ```html title="❌ Missing required attributes → ✅ Fix"
@@ -9060,7 +9560,7 @@ This page catalogs the most frequent AXAG validation failures, their causes, and
 
 ### 4. Missing Safety Metadata
 
-**Error**: `AXAG-LINT-006: Element with risk_level "high" is missing confirmation_required`
+**Error**: `AXAG-LINT-006: axag-risk-level="high" should have axag-confirmation-required="true"`
 
 **Cause**: High or critical risk operations should require confirmation.
 
@@ -9084,7 +9584,7 @@ This page catalogs the most frequent AXAG validation failures, their causes, and
 
 ### 6. Missing Idempotency Declaration
 
-**Error**: `AXAG-LINT-007: Write action missing axag-idempotent declaration`
+**Error**: `AXAG-LINT-007: axag-action-type="write" should declare axag-idempotent`
 
 **Cause**: All write and delete operations should declare whether they're idempotent.
 
@@ -9108,23 +9608,29 @@ This page catalogs the most frequent AXAG validation failures, their causes, and
 
 **Fix**: Either add the intent to the manifest, or fix the typo in the annotation.
 
-### 9. Parameter Mismatch
+### 9. Manifest Drift
 
-**Error**: Parameter "user_role" in annotation not declared in manifest for intent "user.create"
+**Cause**: The committed manifest was generated from an older version of the source, so it no longer describes what the page does.
 
-**Cause**: The annotation references a parameter that the manifest doesn't define.
-
-**Fix**: Synchronize parameters between annotations and manifest.
+**Fix**: Regenerate it — `npx axag generate src --manifest axag-manifest.json` — or let [`@web-axag/compiler`](/docs/tool-generation/build-time-compilation) generate it on every build, which removes this class of failure entirely.
 
 ## Manifest Failures
 
 ### 10. Invalid Intent Format
 
-**Error**: Intent "productSearch" does not match pattern `^[a-z_]+\.[a-z_]+$`
+**Error**: `AXAG-LINT-034: axag-intent="productSearch" must be entity.verb in lowercase letters and underscores, e.g. "cart.add_item"`
 
-**Cause**: Intent must use `entity.action` format with snake_case.
+**Cause**: Intent must use `entity.verb` format in snake_case. The manifest schema rejects anything else.
 
 **Fix**: Rename to `product.search`.
+
+### 11. Macro and Longhand Disagree
+
+**Error**: `AXAG-LINT-028: axag macro conflicts with a longhand attribute`
+
+**Cause**: An element carries both `axag="write:user.deactivate!critical"` and a longhand attribute that says something different, such as `axag-risk-level="low"`.
+
+**Fix**: Keep one form. `npx axag fmt src --to macro` rewrites a file consistently.
 
 ## Remediation Guidance
 
@@ -9157,7 +9663,7 @@ Structural errors prevent the validator from analyzing your annotations further.
 
 1. **Add missing required attributes**: Every annotated element needs `axag-intent`, `axag-entity`, `axag-action-type`
 2. **Fix JSON syntax**: Validate JSON strings in parameter attributes with a JSON linter
-3. **Correct enum values**: Use only allowed values for `axag-action-type` (`read`, `write`, `delete`) and `axag-risk-level` (`none`, `low`, `medium`, `high`, `critical`)
+3. **Correct enum values**: Use only allowed values for `axag-action-type` (`read`, `write`, `delete`, `navigate`) and `axag-risk-level` (`none`, `low`, `medium`, `high`, `critical`)
 
 ## Step 2: Resolve Semantic Warnings
 
@@ -9198,38 +9704,33 @@ npx axag generate src --manifest axag-manifest.json
 # Edit axag-manifest.json and add the missing action definitions
 ```
 
-## Step 4: Auto-Fix Where Possible
+## Step 4: Let the Tools Do the Mechanical Part
 
-Some validators support auto-fixing:
+`axag-lint` doesn't rewrite files — each finding needs a decision about risk or scope that only you can make. Two commands do help with the mechanical work:
 
 ```bash
-# Auto-fix common issues
-npx axag-lint src/ --fix
+# Suggest annotations for unannotated elements and review them interactively
+npx axag scan ./src
 
-# What auto-fix handles:
-# - Add missing axag-idempotent="false" to write actions
-# - Add axag-confirmation-required="true" to high/critical risk
-# - Fix JSON attribute formatting
-# - Normalize intent naming to snake_case
+# Write the ones you accepted
+npx axag apply --dry-run
+npx axag apply
+
+# Rewrite annotations into one consistent form (macro or longhand)
+npx axag fmt src --to macro
 ```
+
+Suggestions from `axag scan` are inferences from labels and markup. Check every risk level and scope before applying — those are exactly the findings the linter exists to catch.
 
 ## Step 5: Verify with Conformance Check
 
 After remediation, verify your target conformance level:
 
 ```bash
-# Check target level
 npx axag validate src --level intermediate --strict
-
-# Verbose output shows:
-# ✓ 45/45 actions have intent declared
-# ✓ 45/45 actions have parameters with types
-# ✓ 42/45 actions have risk level declared
-# ✗ 3 actions missing risk level (list below)
-#   - admin.view_logs
-#   - config.list_options
-#   - help.search
 ```
+
+The command lists each finding with its location and rule ID, then a summary of files scanned, annotated elements, errors and warnings. `--strict` makes warnings fail the run as well as errors, which is what you want once a level is reached and you're keeping it.
 
 ## Incremental Adoption
 
@@ -9496,11 +9997,12 @@ These changes are always safe:
 
 ## Compatibility Matrix
 
-| Consumer Version | Manifest 0.1.x | Manifest 0.2.x | Manifest 1.0.x |
-|-----------------|----------------|----------------|----------------|
-| Agent v0.1.x | ✅ Full | ⚠️ Partial | ❌ Incompatible |
-| Agent v0.2.x | ✅ Full | ✅ Full | ❌ Incompatible |
-| Agent v1.0.x | ✅ Full | ✅ Full | ✅ Full |
+| Consumer built for | Manifest 1.0.x | Manifest 1.1.x | Manifest 2.x |
+|--------------------|----------------|----------------|--------------|
+| 1.0.x | ✅ Full | ⚠️ Works; ignores 1.1 fields such as `tenant_boundary` | ❌ Not guaranteed |
+| 1.1.x | ✅ Full | ✅ Full | ❌ Not guaranteed |
+
+A consumer built for 1.0 can read a 1.1 manifest because 1.1 only adds optional fields. It will not *enforce* what it doesn't know about, which is why the safety fields added in 1.1 are also checked on the server.
 
 ## Robustness Principle
 
@@ -9524,7 +10026,7 @@ gantt
     title Deprecation Timeline
     dateFormat YYYY-MM
     section Phase
-    Deprecation Notice    :a1, 2024-01, 1M
+    Deprecation Notice    :a1, 2026-09, 1M
     Warning in Validators :a2, after a1, 3M
     Error in Validators   :a3, after a2, 6M
     Removal               :a4, after a3, 2M
@@ -9542,11 +10044,12 @@ gantt
 ```json
 {
   "deprecated": {
-    "field": "axag-side-effects",
-    "since": "0.2.0",
-    "removal": "1.0.0",
-    "reason": "Replaced by axag-postconditions with structured side-effect declarations",
-    "migration": "Move side-effects into axag-postconditions array with 'side_effect:' prefix"
+    "field": "axag-conformance",
+    "values": ["A", "AA", "AAA"],
+    "since": "1.1.0",
+    "removal": "2.0.0",
+    "reason": "Conformance levels are named for what they require, not graded like WCAG",
+    "migration": "Use basic, intermediate or full; A, AA and AAA are still accepted and mapped to them"
   }
 }
 ```
@@ -9569,15 +10072,17 @@ Every deprecation includes a migration guide with:
 
 ## How to Check for Deprecations
 
-```bash
-# Check for deprecated usage
-npx axag-lint src/ --check-deprecations
+`axag-lint` has no deprecation rule yet. Until it does, deprecations are announced in the release notes with a search you can run:
 
-# Output
-⚠️ DEPRECATED: axag-side-effects at src/Cart.tsx:42
-   Use axag-postconditions instead (removal in v1.0.0)
-   Migration: https://axag.org/docs/governance/deprecation-strategy#migration-guides
+```bash
+# Find annotations that declare themselves deprecated
+grep -rn 'axag-deprecated="true"' src/
+
+# Find uses of a value a release has deprecated, e.g. the pre-1.1 action types
+grep -rnE 'axag-action-type="(create|mutate)"' src/
 ```
+
+When a deprecated value is also invalid — as `create` and `mutate` are in 1.1 — `axag-lint` already reports it (AXAG-LINT-004).
 
 ## Release Notes Model
 
@@ -9588,9 +10093,9 @@ Every AXAG specification release includes structured release notes that communic
 ## Release Note Structure
 
 ```markdown
-# AXAG v0.2.0 Release Notes
+# AXAG v1.1.0 Release Notes
 
-**Release Date**: 2024-07-01
+**Release Date**: 2026-09-17
 **Status**: Stable
 **Previous Version**: 1.0.0
 
@@ -9642,27 +10147,30 @@ What CI rules changed, new validation requirements, infrastructure changes.
 
 ## Changelog
 
-The project maintains a `CHANGELOG.md` following [Keep a Changelog](https://keepachangelog.com/) format:
+Each release SHOULD also be recorded in a `CHANGELOG.md` following the [Keep a Changelog](https://keepachangelog.com/) format. For 1.1.0 that entry reads:
 
 ```markdown
 # Changelog
 
 ## [Unreleased]
 
-## [0.2.0] - 2024-07-01
+## [1.1.0] - 2026-09-17
 ### Added
-- `axag-tenant-boundary` attribute for multi-tenant scoping
-- New lint rule AXAG-LINT-013 for tenant boundary validation
+- `axag` macro attribute (proposed pattern)
+- Parameters harvested from form controls, or bound from Zod and OpenAPI schemas
+- Manifest fields `tenant_boundary`, `required_roles`, `async` and `dynamic_actions`
+- Server-side enforcement requirement for actions at `high` risk and above
+- Lint rules AXAG-LINT-027 to AXAG-LINT-037
 ### Changed
-- `axag-side-effects` now supports structured array syntax
+- Conformance levels are named `basic`, `intermediate`, `full`
 ### Deprecated
-- Plain string `axag-side-effects` (use structured format)
+- Conformance names `A`, `AA`, `AAA` (still accepted; removal in 2.0.0)
 ### Fixed
-- Schema validation for nested parameter objects
+- Vocabulary pages listed action types and scopes the schema never accepted
 
-## [1.0.0] - 2024-01-15
+## [1.0.0]
 ### Added
-- Initial specification draft
+- Initial specification
 - Core annotation attributes
 - Semantic Manifest schema
 - Tool generation mapping rules
@@ -9855,7 +10363,7 @@ Every AXAG-annotated HTML element uses the following attributes:
 |-----------|------|--------|-------------|
 | `axag-intent` | string | `entity.action` pattern | Canonical intent identifier |
 | `axag-entity` | string | snake_case | Entity this action operates on |
-| `axag-action-type` | string | `read` \| `write` \| `delete` | Operation category |
+| `axag-action-type` | string | `read` \| `write` \| `delete` \| `navigate` | Operation category |
 
 ### Recommended Attributes
 
@@ -9893,7 +10401,7 @@ Every AXAG-annotated HTML element uses the following attributes:
 
 ## Manifest Schema
 
-See [Schema Conformance](/docs/validation/schema-conformance) for the full JSON Schema definition.
+The canonical JSON Schema is published at [`/schema/v1.1/axag-manifest.schema.json`](pathname:///schema/v1.1/axag-manifest.schema.json); every field is listed in [Manifest Fields](/docs/reference/manifest-fields), and [Schema Conformance](/docs/validation/schema-conformance) covers validating against it.
 
 ## Tool Schema
 
@@ -9921,6 +10429,36 @@ Generated MCP tools follow this structure:
   }
 }
 ```
+
+The same action as a WebMCP tool definition uses `inputSchema`, and puts the AXAG fields under `annotations.axag` alongside the standard hints:
+
+```json
+{
+  "name": "entity_action",
+  "description": "Description of the action",
+  "inputSchema": {
+    "type": "object",
+    "properties": { "param_name": { "type": "string", "description": "Parameter description" } },
+    "required": ["param_name"]
+  },
+  "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "axag": {
+      "action_type": "read",
+      "risk_level": "medium",
+      "idempotent": true,
+      "confirmation_required": true,
+      "approval_required": false,
+      "source_intent": "entity.action",
+      "source_entity": "entity"
+    }
+  }
+}
+```
+
+`axag generate` writes the first shape with `--tools` and the second with `--webmcp`. See [Tool Mapping Rules](/docs/reference/tool-mapping-rules).
 
 ## Annotation Attributes Reference
 
@@ -10197,21 +10735,25 @@ These field names are reserved in the Semantic Manifest JSON:
 
 All error codes starting with `AXAG_` are reserved:
 
-- `AXAG_VALIDATION_ERROR`
 - `AXAG_MISSING_PARAM`
 - `AXAG_INVALID_TYPE`
 - `AXAG_OUT_OF_RANGE`
 - `AXAG_INVALID_ENUM`
+- `AXAG_INVALID_FORMAT`
 - `AXAG_PRECONDITION_FAILED`
 - `AXAG_CONFIRMATION_MISSING`
 - `AXAG_APPROVAL_MISSING`
+- `AXAG_APPROVAL_INVALID`
 - `AXAG_SCOPE_VIOLATION`
 - `AXAG_TENANT_BOUNDARY`
 - `AXAG_ROLE_INSUFFICIENT`
+- `AXAG_INTENT_NOT_FOUND`
+- `AXAG_VERSION_MISMATCH` (reserved for future use)
+- `AXAG_RATE_LIMITED` (reserved for future use)
 
 ## Reserved Lint Rule IDs
 
-All IDs matching `AXAG-LINT-XXX` are reserved. Custom rules should use `AXAG-CUSTOM-XXX`.
+All IDs matching `AXAG-LINT-XXX` are reserved. `axag-lint` doesn't load custom rules yet; name checks of your own — a CI script over the manifest, say — `AXAG-CUSTOM-XXX` so they can't collide with future built-in rules.
 
 ## Error Codes Reference
 
@@ -10221,62 +10763,106 @@ Complete reference of all AXAG error codes used in validation, runtime enforceme
 
 ## Validation Error Codes
 
-These codes are emitted by static validators and CI lint tools.
+These are emitted by [`axag-lint`](/docs/validation/ci-linting) and by `axag validate`. Severities are the defaults; a project can change any of them in `.axaglintrc.json`.
 
-| Code | Severity | Description |
-|------|----------|-------------|
-| `AXAG-LINT-001` | Error | Missing `axag-intent` on annotated element |
-| `AXAG-LINT-002` | Error | Missing `axag-entity` on annotated element |
-| `AXAG-LINT-003` | Error | Missing `axag-action-type` on annotated element |
-| `AXAG-LINT-004` | Error | Invalid `axag-action-type` value |
-| `AXAG-LINT-005` | Error | Invalid `axag-risk-level` value |
-| `AXAG-LINT-006` | Warning | High/critical risk missing `confirmation_required` |
-| `AXAG-LINT-007` | Warning | Write/delete missing `axag-idempotent` declaration |
-| `AXAG-LINT-008` | Error | Overlapping required and optional parameters |
-| `AXAG-LINT-009` | Error | Invalid JSON in parameter attribute |
-| `AXAG-LINT-010` | Warning | Intent not found in Semantic Manifest |
-| `AXAG-LINT-011` | Warning | Missing `axag-scope` on tenant-sensitive action |
-| `AXAG-LINT-012` | Error | `approval-required` without `approval-roles` |
+| Code | Default severity | Description |
+|------|------------------|-------------|
+| `AXAG-LINT-001` | Error | Interactive element missing axag-intent attribute |
+| `AXAG-LINT-002` | Error | Element has axag-intent but missing axag-entity |
+| `AXAG-LINT-003` | Error | Element has axag-intent but missing axag-action-type |
+| `AXAG-LINT-004` | Error | Invalid axag-action-type value |
+| `AXAG-LINT-005` | Error | Invalid axag-risk-level value |
+| `AXAG-LINT-006` | Warning | High/critical risk without confirmation-required |
+| `AXAG-LINT-007` | Warning | Write/delete action without idempotent declaration |
+| `AXAG-LINT-008` | Error | Parameter name appears in both required and optional parameters |
+| `AXAG-LINT-009` | Error | Invalid JSON in parameter attributes |
+| `AXAG-LINT-010` | Warning | Intent not found in manifest |
+| `AXAG-LINT-011` | Warning | Role-based attributes without scope declaration |
+| `AXAG-LINT-012` | Error | Approval required without approval roles |
+| `AXAG-LINT-013` | Error | Read action with critical risk level |
+| `AXAG-LINT-014` | Warning | Write action with contradictory precondition |
+| `AXAG-LINT-015` | Warning | Navigate action with side effects |
+| `AXAG-LINT-016` | Warning | Tenant-specific role name with non-tenant scope |
+| `AXAG-LINT-017` | Warning | Non-idempotent mutation without side effects declaration |
+| `AXAG-LINT-018` | Warning | Global scope with personal entity |
+| `AXAG-LINT-019` | Warning | Superadmin role with tenant scope |
+| `AXAG-LINT-020` | Warning | Same entity with different scopes in the same file |
+| `AXAG-LINT-021` | Warning | Delete action without scope declaration |
+| `AXAG-LINT-022` | Warning | Write action with user scope but tenant-level entity |
+| `AXAG-LINT-023` | Error | Write/delete action without risk-level |
+| `AXAG-LINT-024` | Warning | Delete action with risk-level below high |
+| `AXAG-LINT-025` | Info | Read action with risk-level above low |
+| `AXAG-LINT-026` | Warning | Safety metadata mismatch for declared risk level |
+| `AXAG-LINT-027` | Error | Invalid axag macro syntax |
+| `AXAG-LINT-028` | Error | axag macro conflicts with a longhand attribute |
+| `AXAG-LINT-029` | Warning | Form control has no name and cannot become a parameter |
+| `AXAG-LINT-030` | Warning | Form constraint disagrees with the linked schema |
+| `AXAG-LINT-031` | Error | Annotated element has no accessible name |
+| `AXAG-LINT-032` | Warning | Harvested parameter has no label or description |
+| `AXAG-LINT-033` | Info | Dynamic axag value is registered at runtime only |
+| `AXAG-LINT-034` | Error | axag-intent does not match entity.verb |
+| `AXAG-LINT-035` | Error | axag-entity is not a lowercase name |
+| `AXAG-LINT-036` | Error | Tenant-scoped action exposes a tenant identifier as a parameter |
+| `AXAG-LINT-037` | Warning | High-risk action has no server-side enforcement |
 
 ## Runtime Error Codes
 
-These codes are returned by AXAG-aware runtimes when contract violations occur.
+These are returned when a call breaks the contract. The codes are exported from `@web-axag/core` as `AXAG_ERRORS`, with `AxagError` and `refusal()` to raise them, so a refusal means the same thing wherever it comes from.
+
+**Raised by** says which part of the SDK produces a code today: *server* is the [`@web-axag/server`](/docs/frameworks/safety) enforcer, *runtime* is the in-page enforcers in `@web-axag/webmcp`. Parameter checks against `inputSchema` are normally done by the agent host before a tool is called; a handler or API that validates again — as it should — reports failures with the codes marked *your code*.
+
+| Code | Category | HTTP Status | Description | Raised by |
+|------|----------|-------------|-------------|-----------|
+| `AXAG_MISSING_PARAM` | Parameter | 400 | Required parameter not provided | your code |
+| `AXAG_INVALID_TYPE` | Parameter | 400 | Parameter value has wrong type | your code |
+| `AXAG_OUT_OF_RANGE` | Constraint | 400 | Numeric value or string length outside min/max bounds | your code |
+| `AXAG_INVALID_ENUM` | Constraint | 400 | Value not in allowed enum set | your code |
+| `AXAG_INVALID_FORMAT` | Constraint | 400 | Value doesn't match declared format or pattern | your code |
+| `AXAG_PRECONDITION_FAILED` | Precondition | 412 | Precondition check failed | your code |
+| `AXAG_CONFIRMATION_MISSING` | Safety | 428 | Confirmation required but no valid token provided | server, runtime |
+| `AXAG_APPROVAL_MISSING` | Safety | 428 | Approval required but not provided | server |
+| `AXAG_APPROVAL_INVALID` | Safety | 403 | Approval from unauthorized role | your code |
+| `AXAG_SCOPE_VIOLATION` | Security | 403 | Operation outside declared scope | server (CSRF) |
+| `AXAG_TENANT_BOUNDARY` | Security | 403 | Cross-tenant access attempt | server, runtime |
+| `AXAG_ROLE_INSUFFICIENT` | Authorization | 403 | Caller lacks required role | server |
+| `AXAG_INTENT_NOT_FOUND` | Routing | 404 | Requested intent not in manifest | server |
+
+### Reserved for Future Use
+
+These codes are reserved so implementations don't invent conflicting names, but no AXAG tooling raises them yet. A server that needs them today should return them in the same shape.
 
 | Code | Category | HTTP Status | Description |
 |------|----------|-------------|-------------|
-| `AXAG_MISSING_PARAM` | Parameter | 400 | Required parameter not provided |
-| `AXAG_INVALID_TYPE` | Parameter | 400 | Parameter value has wrong type |
-| `AXAG_OUT_OF_RANGE` | Constraint | 400 | Numeric value outside min/max bounds |
-| `AXAG_INVALID_ENUM` | Constraint | 400 | Value not in allowed enum set |
-| `AXAG_INVALID_FORMAT` | Constraint | 400 | Value doesn't match declared format |
-| `AXAG_PRECONDITION_FAILED` | Precondition | 412 | Precondition check failed |
-| `AXAG_CONFIRMATION_MISSING` | Safety | 428 | Confirmation required but not provided |
-| `AXAG_APPROVAL_MISSING` | Safety | 428 | Approval required but not provided |
-| `AXAG_APPROVAL_INVALID` | Safety | 403 | Approval from unauthorized role |
-| `AXAG_SCOPE_VIOLATION` | Security | 403 | Operation outside declared scope |
-| `AXAG_TENANT_BOUNDARY` | Security | 403 | Cross-tenant access attempt |
-| `AXAG_ROLE_INSUFFICIENT` | Authorization | 403 | Caller lacks required role |
-| `AXAG_INTENT_NOT_FOUND` | Routing | 404 | Requested intent not in manifest |
 | `AXAG_VERSION_MISMATCH` | Compatibility | 409 | Consumer/manifest version incompatible |
 | `AXAG_RATE_LIMITED` | Throttling | 429 | Too many requests for this intent |
 
 ## Error Response Format
 
+A refusal is a flat object. `error` is the code and `status` its HTTP status, so a server can answer with it directly; `intent` and `details` are present when there is something to say.
+
 ```json
 {
-  "error": {
-    "code": "AXAG_PRECONDITION_FAILED",
-    "type": "precondition_error",
-    "message": "Precondition not met: cart must have at least one item",
-    "details": {
-      "intent": "cart.begin_checkout",
-      "failed_precondition": "cart must have at least one item",
-      "suggestion": "Add items to cart using cart.add_item before beginning checkout"
-    },
-    "documentation_url": "https://axag.org/docs/reference/error-codes#AXAG_PRECONDITION_FAILED"
+  "error": "AXAG_PRECONDITION_FAILED",
+  "status": 412,
+  "message": "Precondition not met: cart must have at least one item",
+  "intent": "cart.begin_checkout",
+  "details": {
+    "failed_precondition": "cart must have at least one item"
   }
 }
 ```
+
+```json
+{
+  "error": "AXAG_APPROVAL_MISSING",
+  "status": 428,
+  "message": "\"user.deactivate\" has no approval yet",
+  "intent": "user.deactivate",
+  "details": { "approval_roles": ["security_admin"] }
+}
+```
+
+In code, `AxagError` carries the same fields and `toRefusal()` produces this object. See [Runtime Validation](/docs/validation/runtime-validation).
 
 ## Agent Handling Guide
 
@@ -10285,11 +10871,16 @@ These codes are returned by AXAG-aware runtimes when contract violations occur.
 | `AXAG_MISSING_PARAM` | Add the missing parameter and retry |
 | `AXAG_INVALID_TYPE` | Fix the parameter type and retry |
 | `AXAG_OUT_OF_RANGE` | Adjust value to within bounds and retry |
+| `AXAG_INVALID_ENUM` | Choose a value from the tool's `enum` and retry |
+| `AXAG_INVALID_FORMAT` | Reformat the value and retry |
 | `AXAG_PRECONDITION_FAILED` | Execute prerequisite action, then retry |
-| `AXAG_CONFIRMATION_MISSING` | Request user confirmation, then retry with token |
-| `AXAG_APPROVAL_MISSING` | Request approval from authorized role, then retry |
+| `AXAG_CONFIRMATION_MISSING` | Ask the person to confirm, then retry with the confirmation token |
+| `AXAG_APPROVAL_MISSING` | Request approval from an authorized role, then retry |
+| `AXAG_APPROVAL_INVALID` | Do not retry with the same approver |
+| `AXAG_ROLE_INSUFFICIENT` | Do not retry — escalate to a person with the role |
 | `AXAG_SCOPE_VIOLATION` | Do not retry — operation is out of scope |
 | `AXAG_TENANT_BOUNDARY` | Do not retry — security violation |
+| `AXAG_INTENT_NOT_FOUND` | Refresh the tool list; the action may no longer be on the page |
 
 ## Manifest Fields Reference
 
@@ -10306,6 +10897,7 @@ Every Semantic Manifest field, and the annotation attribute it is generated from
 | `source` | object | MUST | `url`, `paths`, `tool`, `tool_version` of the run |
 | `conformance` | string | MUST | Computed — see [Conformance Levels](/docs/specification/conformance-levels) |
 | `actions` | Action[] | MUST | One entry per distinct `axag-intent`, sorted by intent |
+| `dynamic_actions` | object[] | MAY | Annotations that couldn't be read at build time and are registered at runtime instead (1.1). Each has `source_file`, `source_line` and `reason` |
 
 When two elements declare the same intent, generators keep the first and report the second (`AXAG-CORE-003`).
 
@@ -10366,7 +10958,7 @@ axag-required-parameters='[{"name":"quantity","type":"integer","min":1,"max":99}
 {
   "version": "1.1.0",
   "generated_at": "2026-09-14T10:30:00.000Z",
-  "source": { "url": "https://example.com", "paths": ["src"], "tool": "axag-cli", "tool_version": "1.0.2" },
+  "source": { "url": "https://example.com", "paths": ["src"], "tool": "@web-axag/cli", "tool_version": "1.1.0" },
   "conformance": "intermediate",
   "actions": [
     {
@@ -10526,7 +11118,7 @@ Canonical definitions of terms used throughout the AXAG specification.
 
 **Action** — A discrete operation that an agent can perform on an entity. Defined by an intent, entity, and action type.
 
-**Action Type** — Classification of an action as `read`, `write`, or `delete`.
+**Action Type** — Classification of an action as `read`, `write`, `delete` or `navigate`.
 
 **Affordance** — A property of an interface element that communicates what actions are possible. In AXAG, affordances are declared via `axag-*` attributes rather than visual cues.
 
@@ -10544,7 +11136,7 @@ Canonical definitions of terms used throughout the AXAG specification.
 
 **Confirmation** — A gate that requires explicit user acknowledgment before a high-risk action executes.
 
-**Conformance Level** — A tier of AXAG compliance: Basic (required fields), Intermediate (parameters + safety), Full (all metadata).
+**Conformance Level** — A tier of AXAG compliance: `basic` (required fields), `intermediate` (risk and safety metadata), `full` (scope and declared conditions as well). The legacy names `A`, `AA`, `AAA` map onto these.
 
 **Constraint** — A validation rule on a parameter (type, range, enum, format, pattern).
 
@@ -10560,13 +11152,21 @@ Canonical definitions of terms used throughout the AXAG specification.
 
 **Idempotent** — An operation that produces the same result when called multiple times with the same parameters.
 
-**Intent** — The canonical identifier for an action, following the `entity.action` pattern (e.g., `product.search`).
+**Intent** — The canonical identifier for an action, following the `entity.verb` pattern in snake_case (e.g., `product.search`, `cart.add_item`).
+
+**Inheritance** — A container's `axag-scope`, `axag-tenant-boundary` and `axag-required-roles` apply to the annotations inside it. See [Context Inheritance](/docs/specification/context-inheritance).
 
 ## M
 
 **Manifest** — See Semantic Manifest.
 
+**Macro** — The `axag` shorthand attribute that packs identity and safety fields into one string, e.g. `axag="write:user.deactivate!critical?approval"`. Expands to the longhand attributes.
+
 **MCP** — Model Context Protocol. A standard for AI agent tool integration. AXAG-generated tools target MCP format.
+
+## H
+
+**Harvesting** — Reading parameters from the markup — a form's controls, their names, labels, types and HTML constraints — rather than declaring them on the annotation. See [Schema Harvesting](/docs/semantic-manifest/schema-harvesting).
 
 ## P
 
@@ -10597,6 +11197,10 @@ Canonical definitions of terms used throughout the AXAG specification.
 **Tool** — A callable function generated from a Semantic Manifest action, consumable by AI agents via MCP or similar protocols.
 
 **Tool Generation** — The process of converting Semantic Manifest actions into MCP-compatible tool definitions.
+
+## W
+
+**WebMCP** — The browser API (`document.modelContext`) through which a page registers tools with an agent running in the browser. See [Agent Runtime](/docs/frameworks/runtime).
 
 ## Term Disambiguation
 
@@ -10638,6 +11242,7 @@ AXAG uses "intent" to emphasize that the annotation describes *purpose*, not *me
 | **Semantic Manifest** | The JSON document containing all actions for a site |
 | **Schema** | The JSON Schema definition that validates a manifest |
 | **Specification** | The AXAG standard itself (this documentation) |
+| **Spec (object)** | In the SDK, the object `defineAction({...})` returns — one action described in TypeScript instead of attributes. See [React](/docs/frameworks/react). |
 
 ## Confirmation vs. Approval
 
@@ -10681,6 +11286,16 @@ Risk level and action type are orthogonal:
 | `medium` | Possible | ✅ Common | Possible |
 | `high` | Rare | ✅ Common | ✅ Common |
 | `critical` | Rare | ✅ Common | Possible |
+
+## Manifest vs Tool Registry vs Registered Tools
+
+| Term | What It Is |
+|------|-----------|
+| **Semantic Manifest** | Every action a build could find, as JSON — the source of truth |
+| **Tool Registry** | Those actions rewritten as MCP tool definitions, in a file |
+| **Registered tools** | What an agent in the browser actually sees right now: the actions whose elements are on screen, registered with `document.modelContext` |
+
+The first two are files produced at build time. The third is live, and smaller: a tool disappears when its control does.
 
 
 # Tutorials
@@ -11031,7 +11646,7 @@ This tutorial walks through generating an AXAG Semantic Manifest from annotated 
 ## Step 1: Install the CLI
 
 ```bash title="Install AXAG CLI"
-npm install -D @web-axag/axag-cli
+npm install -D @web-axag/cli
 ```
 
 ## Step 2: Scan Source Files
@@ -11052,7 +11667,7 @@ The scanner:
 {
   "version": "1.1.0",
   "generated_at": "2026-09-14T10:30:00.000Z",
-  "source": { "paths": ["/app/src"], "tool": "axag-cli", "tool_version": "1.0.2" },
+  "source": { "paths": ["/app/src"], "tool": "@web-axag/cli", "tool_version": "1.1.0" },
   "conformance": "intermediate",
   "actions": [
     {
@@ -11086,7 +11701,7 @@ Any `AXAG-CORE-*` warnings (invalid enum values, invalid JSON arrays, duplicate 
 
 ## Step 5: Or generate it from your bundler
 
-An app with a bundler doesn't need a separate scan step. [`@axag/compiler`](/docs/tool-generation/build-time-compilation) reads the same sources on every build and writes the manifest into the output:
+An app with a bundler doesn't need a separate scan step. [`@web-axag/compiler`](/docs/tool-generation/build-time-compilation) reads the same sources on every build and writes the manifest into the output:
 
 ```ts title="vite.config.ts"
 
@@ -11135,7 +11750,7 @@ Source: https://axag.org/docs/tutorials/bind-schemas
 If your API already validates requests with Zod or describes them in OpenAPI, point AXAG at that definition instead of declaring parameters again. AXAG attributes then only carry intent and safety.
 
 ## Prerequisites
-- `@web-axag/axag-cli` installed (see [Generate a Semantic Manifest](/docs/tutorials/generate-semantic-manifest))
+- `@web-axag/cli` installed (see [Generate a Semantic Manifest](/docs/tutorials/generate-semantic-manifest))
 - For Zod: `zod@4` in your project
 
 ## Option A: a Zod schema
@@ -11376,7 +11991,7 @@ This tutorial shows how to integrate AXAG validation into your CI/CD pipeline to
 ## Step 1: Install Dependencies
 
 ```bash title="Install AXAG dev dependencies"
-npm install -D @web-axag/axag-cli @web-axag/axag-lint
+npm install -D @web-axag/cli @web-axag/lint
 ```
 
 ## Step 2: Create Lint Configuration
@@ -11410,7 +12025,7 @@ Create `.axaglintrc.json`. Every rule has a default severity, so list only the o
 
 `axag generate` compiles the manifest from your sources and `--validate` checks it against the JSON Schema. Generating the manifest first means the cross-reference rules have something current to compare with.
 
-An app with a bundler can skip the generate step: [`@axag/compiler`](/docs/tool-generation/build-time-compilation) writes the manifest on every build.
+An app with a bundler can skip the generate step: [`@web-axag/compiler`](/docs/tool-generation/build-time-compilation) writes the manifest on every build.
 
 ## Step 4: GitHub Actions Workflow
 
@@ -11515,8 +12130,8 @@ Pick a page with 2–5 interactive elements, ideally with a mix of read and writ
 
 ### Generate and test
 ```bash title="Generate manifest & tools from pilot page"
-npx axag scan --input src/pages/pilot/ --output axag-manifest.json
-npx axag generate-tools --manifest axag-manifest.json --output tools/
+npx axag generate src/pages/pilot --manifest axag-manifest.json --tools tools/tool-registry.json --validate
+npx axag-lint src/pages/pilot --manifest axag-manifest.json
 ```
 
 ### Success criteria
@@ -11537,7 +12152,7 @@ Expand to all customer-facing user flows:
 
 ### Add CI validation
 ```bash title="Add linting to CI"
-npm install -D @web-axag/axag-lint
+npm install -D @web-axag/lint
 # Add the GitHub Actions workflow from the Add Validation to CI tutorial
 ```
 
@@ -12394,8 +13009,7 @@ A visual gallery of AXAG-annotated UI patterns across industry domains. Each car
   axag-intent="opportunity.advance_stage"
   axag-entity="opportunity"
   axag-action-type="write"
-  axag-required-parameters='["opportunity_id","new_stage"]'
-  axag-constraints='{"new_stage": {"enum": ["qualification","proposal","negotiation","closed_won","closed_lost"]}}'
+  axag-required-parameters='["opportunity_id",{"name":"new_stage","type":"string","enum":["qualification","proposal","negotiation","closed_won","closed_lost"]}]'
   axag-preconditions='["opportunity exists","stage transition valid"]'
   axag-postconditions='["pipeline updated","forecast recalculated"]'
   axag-risk-level="medium"
@@ -12492,8 +13106,7 @@ A visual gallery of AXAG-annotated UI patterns across industry domains. Each car
   axag-intent="dataset.export"
   axag-entity="dataset"
   axag-action-type="read"
-  axag-required-parameters='["dataset_id","format"]'
-  axag-constraints='{"format": {"enum": ["csv","json","parquet","xlsx"]}}'
+  axag-required-parameters='["dataset_id",{"name":"format","type":"string","enum":["csv","json","parquet","xlsx"]}]'
   axag-risk-level="none"
   axag-idempotent="false"
   axag-async="true"
@@ -12512,9 +13125,8 @@ A visual gallery of AXAG-annotated UI patterns across industry domains. Each car
   axag-intent="ticket.create"
   axag-entity="ticket"
   axag-action-type="write"
-  axag-required-parameters='["subject","description","priority"]'
+  axag-required-parameters='["subject","description",{"name":"priority","type":"string","enum":["low","medium","high","critical"]}]'
   axag-optional-parameters='["category","attachments"]'
-  axag-constraints='{"priority": {"enum": ["low","medium","high","critical"]}}'
   axag-risk-level="low"
   axag-idempotent="false"
   axag-side-effects='["ticket_created","support_team_notified"]'
@@ -12589,8 +13201,7 @@ A visual gallery of AXAG-annotated UI patterns across industry domains. Each car
   axag-intent="access_request.approve_manager"
   axag-entity="access_request"
   axag-action-type="write"
-  axag-required-parameters='["request_id","decision","comments"]'
-  axag-constraints='{"decision": {"enum": ["approve","reject"]}}'
+  axag-required-parameters='["request_id",{"name":"decision","type":"string","enum":["approve","reject"]},"comments"]'
   axag-preconditions='["request status is pending_manager"]'
   axag-postconditions='["manager decision recorded","compliance reviewer notified"]'
   axag-risk-level="high"
@@ -12606,8 +13217,7 @@ A visual gallery of AXAG-annotated UI patterns across industry domains. Each car
   axag-intent="access_request.approve_compliance"
   axag-entity="access_request"
   axag-action-type="write"
-  axag-required-parameters='["request_id","decision","compliance_notes"]'
-  axag-constraints='{"decision": {"enum": ["approve","reject"]}}'
+  axag-required-parameters='["request_id",{"name":"decision","type":"string","enum":["approve","reject"]},"compliance_notes"]'
   axag-preconditions='["request status is pending_compliance","manager approved"]'
   axag-postconditions='["access provisioned","audit trail updated"]'
   axag-risk-level="critical"
@@ -12809,11 +13419,27 @@ JSON-LD is an alternative annotation format being evaluated for future specifica
 
 **Why this is "proposed":** The normative annotation format is HTML data attributes (`axag-*`). JSON-LD is being explored as a complementary format for machine-readable page-level declarations.
 
+### Pattern: The `axag` Macro (Proposed)
+
+:::info Proposed Implementation Pattern
+The macro is a proposed pattern in AXAG 1.1, and becomes normative once the 1.1 review period closes. All AXAG tooling already supports it.
+:::
+
+```html
+<button axag="write:user.deactivate!critical?approval&roles=security_admin">Deactivate</button>
+```
+
+It expands to exactly the longhand attributes an author could have written, so a manifest built from either form is identical. See [Macro Syntax](/docs/specification/macro-syntax).
+
+**Why this is "proposed":** the normative annotation format is the longhand `axag-*` attributes. The macro is shorthand over them, under review for 1.2.
+
 ### Pattern: TypeScript Wrapper Component (Proposed)
 
 :::info Proposed Implementation Pattern
 Framework-specific helpers are not part of the specification but are recommended for developer experience.
 :::
+
+The SDK now ships bindings for [React](/docs/frameworks/react), [Vue](/docs/frameworks/vue) and [Angular](/docs/frameworks/angular) that do this and register the action with the agent runtime while the component is mounted. A hand-rolled wrapper like the one below is still fine for a project that only wants the attributes in the DOM.
 
 ```typescript
 
@@ -12892,11 +13518,11 @@ WCAG makes UIs accessible to *humans* with disabilities. AXAG makes UIs accessib
 
 ### Do I need to change my existing UI framework?
 
-No. AXAG annotations are HTML data attributes that layer on top of any framework — React, Angular, Vue, Svelte, plain HTML. No structural changes needed.
+No. Annotations are HTML attributes, so they work in any framework, or none. Where you'd rather annotate from component state than from markup, there are bindings: `useAxag` for [React](/docs/frameworks/react) and [Vue](/docs/frameworks/vue), and an `[axag]` directive for [Angular](/docs/frameworks/angular). They register the action for as long as the component is on screen.
 
 ### Is AXAG an official W3C standard?
 
-Not yet. AXAG is a proposed community standard currently at **v1.0.0**. The goal is to evolve it through community adoption and eventually pursue formal standardisation.
+Not yet. AXAG is a proposed community standard, currently at **v1.1.0**. The goal is to evolve it through community adoption and eventually pursue formal standardisation.
 
 ---
 
@@ -12904,10 +13530,16 @@ Not yet. AXAG is a proposed community standard currently at **v1.0.0**. The goal
 
 ### What is the minimum viable annotation?
 
-Every annotated element needs at least:
+Every annotated element needs an intent, an entity and an action type. With the [macro](/docs/specification/macro-syntax), that is one attribute — the entity is implied by the intent:
+
+```html
+<button axag="read:product.search">Search</button>
+```
+
+In longhand, the same annotation is:
 - `axag-intent` — the semantic intent (e.g., `product.search`)
 - `axag-entity` — the domain entity (e.g., `product`)
-- `axag-action-type` — the operation type (`read`, `write`, or `delete`)
+- `axag-action-type` — the operation type: `read`, `write`, `delete` or `navigate`
 
 ### How do I annotate a multi-step workflow?
 
@@ -12915,7 +13547,12 @@ Use a separate annotation on each step's submit/action element. Include `axag-pr
 
 ### Can I annotate dynamically rendered components?
 
-Yes. Annotations are HTML attributes, so they work on dynamically rendered DOM just as well. For React, you can spread AXAG attributes onto elements or wrap them in a reusable component. See [Annotation Reuse](/docs/authoring-guide/annotation-reuse).
+Yes, in two ways:
+
+- **As markup.** Annotations are attributes, so anything that renders them works — including the [`axag` macro](/docs/specification/macro-syntax), which fits in one attribute.
+- **As a spec.** `defineAction({...})` passed to `axag={spec}`, `useAxag`, `v-axag` or `[axag]`. A spec held in a module-level `const` is read at build time and lands in the manifest. One built at runtime — from props, say — is registered in the page instead, and listed in the manifest's `dynamic_actions` so a runtime knows the manifest isn't complete.
+
+See [Build-Time Compilation](/docs/tool-generation/build-time-compilation).
 
 ### What if an action has no clear entity?
 
@@ -12932,9 +13569,11 @@ Annotations live *in the HTML*. A semantic manifest is a JSON document *generate
 ### Where should I host my manifest?
 
 Recommended discovery methods (in priority order):
-1. **Well-known URL:** `/.well-known/axag-manifest.json`
-2. **HTTP header:** `X-AXAG-Manifest: <url>`
+1. **Well-known URL:** `/.well-known/axag-manifest.json` — where [`@web-axag/compiler`](/docs/tool-generation/build-time-compilation) writes it on every build
+2. **HTTP header:** `Link: </.well-known/axag-manifest.json>; rel="axag-manifest"`
 3. **HTML meta tag:** `<meta name="axag-manifest" content="<url>">`
+
+See the [Discovery Model](/docs/semantic-manifest/discovery-model).
 
 ### Can I have multiple manifests?
 
@@ -12956,11 +13595,15 @@ See [Mapping Rules](/docs/tool-generation/mapping-rules).
 
 ### Do generated tools handle authentication?
 
-Tools include `axag-required-roles` and `axag-scope` metadata so the MCP runtime can enforce authorization. Actual credential handling is the responsibility of the MCP server and the agent framework.
+Tools don't carry credentials. A call runs in the page, in the session the person is already signed into, so it authenticates the way the app already does.
+
+What tools *do* carry is the authorization an action needs — `required_roles`, `approval_roles`, `scope` and `tenant_boundary` — and [`@web-axag/server`](/docs/frameworks/safety) checks those on every call, against the manifest rather than anything the caller sent.
 
 ### Can I customize generated tool names?
 
-The default mapping is `entity_action` (e.g., `product_search`). You can override this in your tool generation pipeline configuration, but the default naming convention is strongly recommended for consistency.
+No. A tool's name is its intent with `.` replaced by `_` — `product.search` becomes `product_search` — so the name an agent sees can always be traced back to the annotation. To change a tool's name, change the intent.
+
+`axag-operation-id` sets the manifest's `operation_id`, which is separate from the tool name.
 
 ---
 
@@ -12968,15 +13611,16 @@ The default mapping is `entity_action` (e.g., `product_search`). You can overrid
 
 ### What validation tools are available?
 
-- **Static validation:** JSON Schema validation of annotation attributes
-- **CI linting:** `npx axag-lint` with rules like `AXAG-LINT-001` (missing intent)
-- **Runtime validation:** Parameter validation at agent invocation time
+- **`axag-lint`** — 37 rules over HTML, JSX, TSX and Vue, covering identity, safety, scope, harvesting, macro syntax and server enforcement. Outputs console, JSON, GitHub annotations or SARIF.
+- **`axag validate`** — the same rules, limited to a [conformance level](/docs/specification/conformance-levels).
+- **`axag generate --validate`** — builds the manifest and checks it against the JSON Schema.
+- **A GitHub Action** that annotates pull requests and feeds code scanning, with baselines so an existing codebase fails only on new findings.
 
-See the [Validation](/docs/validation/static-validation) section.
+See [CI/CD Linting](/docs/validation/ci-linting).
 
 ### How do I add AXAG validation to CI?
 
-Add `npx axag-lint --format=github` to your CI pipeline. It checks all HTML/JSX/TSX files for annotation completeness and schema conformance. See [Add Validation to CI](/docs/tutorials/add-validation-to-ci).
+Use the AXAG Lint action, or run `npx axag-lint src --format github` yourself. The action annotates the pull request and writes SARIF for code scanning; `--changed-since origin/main` and a baseline keep an existing codebase from failing on findings it already had. See [Add Validation to CI](/docs/tutorials/add-validation-to-ci).
 
 ---
 
@@ -12984,18 +13628,24 @@ Add `npx axag-lint --format=github` to your CI pipeline. It checks all HTML/JSX/
 
 ### How does risk classification work?
 
-Four levels:
-| Level | Meaning | Agent behaviour |
+Five levels:
+| Level | Meaning | Required safety |
 |-------|---------|-----------------|
-| `none` | No risk (reads) | Execute freely |
-| `low` | Low risk (simple writes) | Execute with logging |
-| `medium` | Moderate risk (state changes) | Require confirmation |
-| `high` | High risk (payments, deletions) | Require confirmation + review |
-| `critical` | Critical (irreversible) | Require multi-party approval |
+| `none` | No risk (reads, navigation) | None |
+| `low` | Easily reversible (cart operations) | None; logging recommended |
+| `medium` | State changes requiring attention | Confirmation recommended |
+| `high` | Financial or significant data impact | Confirmation, enforced on the server |
+| `critical` | Irreversible, high impact | Confirmation and approval, enforced on the server |
+
+See [Risk Classification](/docs/specification/risk-classification).
 
 ### What happens if an agent ignores safety metadata?
 
-The safety metadata is advisory. Well-behaved agent frameworks (e.g., MCP-compliant servers) will enforce it. Non-compliant agents may ignore it, which is why AXAG also recommends server-side enforcement of preconditions.
+It can't get past the server, if the server is doing its part.
+
+In the page, [safety enforcers](/docs/frameworks/safety) ask a person to confirm high-risk actions, keep the tenant out of the agent's hands, and audit every call. But an agent running in the page holds the page's credentials and can call your API directly, so declarations alone constrain nothing.
+
+`@web-axag/server` closes that gap: a high-risk call needs a confirmation token bound to that exact call and person, approval and roles are checked, and tenant boundaries are enforced. The specification requires this server-side enforcement for any action at `high` risk or above. **AXAG-LINT-037** warns about high-risk actions your server isn't enforcing.
 
 ---
 
@@ -13024,10 +13674,9 @@ AXAG follows semantic versioning. New attributes are additive (non-breaking). Re
 ### How can I contribute?
 
 - Add new use-case domain examples
-- Improve documentation
-- Write tutorials
+- Improve documentation and tutorials — [web-axag/docs](https://github.com/web-axag/docs)
+- Improve the linter, compiler, runtime and bindings — [web-axag/sdk](https://github.com/web-axag/sdk)
 - Report issues and propose RFCs
-- Build tooling (linters, generators, IDE plugins)
 
 See the [Contributor Guide](/docs/contributors/guide).
 
@@ -13077,22 +13726,33 @@ Thank you for your interest in contributing to the AXAG Standard! This guide exp
 
 ### Prerequisites
 
-- Node.js ≥ 18
-- npm or pnpm
+- Node.js ≥ 20
+- npm (documentation) or pnpm (SDK)
 - Git
 
-### Local Development Setup
+### Where things live
+
+| Repository | Contains |
+|------------|----------|
+| [web-axag/docs](https://github.com/web-axag/docs) | This site: the specification, guides, tutorials and examples |
+| [web-axag/sdk](https://github.com/web-axag/sdk) | The SDK: core, compiler, runtime, bindings, server, linter and CLI |
+
+### Local Development Setup — documentation
 
 ```bash
-# Clone the repository
-git clone https://github.com/me-saurabhkohli/mcp-agentify.git
-cd mcp-agentify/axag
-
-# Install dependencies
+git clone https://github.com/web-axag/docs.git
+cd axag-docs
 npm install
-
-# Start the development server
 npm start
+```
+
+### Local Development Setup — SDK
+
+```bash
+git clone https://github.com/web-axag/sdk.git
+cd axag-sdk
+pnpm install
+pnpm test
 ```
 
 The site will be available at `http://localhost:3000`.
@@ -13133,7 +13793,7 @@ axag/
 
 ### 1. Find or Create an Issue
 
-- Browse [open issues](https://github.com/me-saurabhkohli/mcp-agentify/issues)
+- Browse open issues for the [documentation](https://github.com/web-axag/docs/issues) or the [SDK](https://github.com/web-axag/sdk/issues)
 - If your contribution isn't covered by an existing issue, create one first
 - Wait for maintainer acknowledgement before starting large changes
 
@@ -13154,7 +13814,7 @@ Branch naming conventions:
 
 - Follow the [Style Guide](/docs/contributors/style-guide)
 - Add or update tests if applicable
-- Ensure all examples validate with `npm run validate`
+- Ensure all examples validate with `npm run validate:axag`
 
 ### 4. Test Locally
 
@@ -13163,7 +13823,7 @@ Branch naming conventions:
 npm run build
 
 # Run validation
-npm run validate
+npm run validate:axag
 
 # Run linting
 npm run lint
@@ -13567,7 +14227,7 @@ Add your domain to `docs/use-cases/overview.md`:
 
 ```bash
 npm run build
-npm run validate
+npm run validate:axag
 ```
 
 ---

@@ -33,70 +33,81 @@ After execution, the runtime verifies:
 - **Side-effects**: Declared side-effects occurred as expected
 - **Error semantics**: Error responses follow the declared error schema
 
-## Implementation Pattern
+## Implementation
 
-```typescript title="AXAGRuntimeValidator — interface" showLineNumbers
-interface AXAGRuntimeValidator {
-  validatePreExecution(
-    toolCall: ToolCall,
-    manifest: ManifestAction
-  ): ValidationResult;
+[`@web-axag/server`](/docs/frameworks/safety) enforces the safety half of these checks against the generated manifest:
 
-  validateConfirmation(
-    toolCall: ToolCall,
-    confirmationToken: string | null
-  ): ValidationResult;
+```typescript title="Server-side enforcement" showLineNumbers
+import { createEnforcer, AxagError } from '@web-axag/server';
 
-  validateApproval(
-    toolCall: ToolCall,
-    approvalToken: string | null,
-    approverRole: string
-  ): ValidationResult;
+const enforcer = createEnforcer({
+  manifest,
+  approvals: ({ action, actor }) => approvals.exists(action.intent, actor.id),
+  csrfOf: request => request.session?.csrfToken,
+  audit: record => log.info(record),
+});
 
-  validatePostExecution(
-    toolCall: ToolCall,
-    result: ExecutionResult,
-    manifest: ManifestAction
-  ): ValidationResult;
-}
-
-interface ValidationResult {
-  valid: boolean;
-  errors: ValidationError[];
-  warnings: ValidationWarning[];
+try {
+  await enforcer.check({
+    intent: 'cart.begin_checkout',
+    parameters: request.body,
+    headers: request.headers,
+    actor: { id: session.userId, tenant: session.tenant, roles: session.roles },
+  });
+} catch (error) {
+  if (error instanceof AxagError) return response.status(error.status).json(error.toRefusal());
+  throw error;
 }
 ```
+
+What each layer checks today:
+
+| Check | Where |
+|-------|-------|
+| Confirmation (single-use token bound to intent, parameters and actor) | `@web-axag/server`; the page asks the person first |
+| Approval and `approval_roles` | `@web-axag/server`, through your `approvals` hook |
+| `required_roles` | `@web-axag/server` |
+| Tenant scope and `tenant_boundary` | `@web-axag/server`; the page removes tenant parameters from the agent's schema |
+| CSRF | `@web-axag/server`; the page attaches the token |
+| Parameter types, enums and ranges | The input schema the agent sees, and your API's own validation |
+| Preconditions and postconditions | Your application — they are written for people and agents to reason about, not for a machine to evaluate |
 
 ## Error Response Format
 
-When runtime validation fails, the error response follows a standard format:
+A refused call answers with the error code as `error`, the HTTP status it carries, and a message a person can act on:
 
-```json title="Validation error response"
+```json title="Refusal"
 {
-  "error": {
-    "code": "AXAG_VALIDATION_ERROR",
-    "type": "precondition_failed",
-    "message": "Precondition not met: cart must have at least one item",
-    "details": {
-      "intent": "cart.begin_checkout",
-      "failed_precondition": "cart must have at least one item",
-      "suggestion": "Add items to cart before beginning checkout"
-    }
-  }
+  "error": "AXAG_CONFIRMATION_MISSING",
+  "status": 428,
+  "message": "\"cart.begin_checkout\" needs a confirmation token",
+  "intent": "cart.begin_checkout"
 }
 ```
 
-## Common Runtime Validation Errors
+`details` is added where there is more to say — the roles that may approve, or the parameter that pointed at another tenant:
 
-| Error Code | Type | Description |
-|-----------|------|-------------|
-| `AXAG_MISSING_PARAM` | `parameter_error` | Required parameter not provided |
-| `AXAG_INVALID_TYPE` | `parameter_error` | Parameter value has wrong type |
-| `AXAG_OUT_OF_RANGE` | `constraint_error` | Numeric value outside min/max |
-| `AXAG_INVALID_ENUM` | `constraint_error` | Value not in allowed enum set |
-| `AXAG_PRECONDITION_FAILED` | `precondition_error` | Precondition check failed |
-| `AXAG_CONFIRMATION_MISSING` | `safety_error` | Confirmation required but not provided |
-| `AXAG_APPROVAL_MISSING` | `safety_error` | Approval required but not provided |
-| `AXAG_SCOPE_VIOLATION` | `security_error` | Operation outside declared scope |
-| `AXAG_TENANT_BOUNDARY` | `security_error` | Cross-tenant access attempt |
-| `AXAG_ROLE_INSUFFICIENT` | `authorization_error` | Caller lacks required role |
+```json title="Refusal with details"
+{
+  "error": "AXAG_ROLE_INSUFFICIENT",
+  "status": 403,
+  "message": "\"audit_log.purge\" requires one of: auditor",
+  "intent": "audit_log.purge",
+  "details": { "required_roles": ["auditor"] }
+}
+```
+
+The same shape comes back from the page's enforcers when a person declines, so an agent handles a refusal the same way wherever it happened.
+
+## Error Codes
+
+Every code, its HTTP status and which layer raises it is listed in the [Error Codes Reference](/docs/reference/error-codes). Codes are exported from `@web-axag/core` as `AXAG_ERRORS`, so your own validation can refuse in the same shape:
+
+```typescript
+import { AxagError } from '@web-axag/core';
+
+if (!body.cart_id) {
+  throw new AxagError('AXAG_MISSING_PARAM', 'cart_id is required', { intent: 'cart.begin_checkout' });
+}
+```
+

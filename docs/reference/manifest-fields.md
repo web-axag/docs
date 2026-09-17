@@ -18,6 +18,7 @@ Every Semantic Manifest field, and the annotation attribute it is generated from
 | `source` | object | MUST | `url`, `paths`, `tool`, `tool_version` of the run |
 | `conformance` | string | MUST | Computed — see [Conformance Levels](/docs/specification/conformance-levels) |
 | `actions` | Action[] | MUST | One entry per distinct `axag-intent`, sorted by intent |
+| `dynamic_actions` | object[] | MAY | Annotations that couldn't be read at build time and are registered at runtime instead (1.1). Each has `source_file`, `source_line` and `reason` |
 
 When two elements declare the same intent, generators keep the first and report the second (`AXAG-CORE-003`).
 
@@ -78,7 +79,7 @@ axag-required-parameters='[{"name":"quantity","type":"integer","min":1,"max":99}
 {
   "version": "1.1.0",
   "generated_at": "2026-09-14T10:30:00.000Z",
-  "source": { "url": "https://example.com", "paths": ["src"], "tool": "axag-cli", "tool_version": "1.0.2" },
+  "source": { "url": "https://example.com", "paths": ["src"], "tool": "@web-axag/cli", "tool_version": "1.1.0" },
   "conformance": "intermediate",
   "actions": [
     {

@@ -14,7 +14,7 @@ import ProposedPattern from '@site/src/components/ProposedPattern';
 The `axag` attribute packs the most common annotation fields into one string. It expands to exactly the longhand `axag-*` attributes an author could have written, so validators, manifests and generated tools are identical whichever form a page uses.
 
 <ProposedPattern>
-The macro is a Proposed Implementation Pattern in AXAG 1.1. Tooling (`@web-axag/axag-lint`, `axag-cli`, the VS Code extension) supports it; it becomes normative once the 1.1 review period closes.
+The macro is a Proposed Implementation Pattern in AXAG 1.1. All AXAG tooling — `axag-lint`, the `axag` CLI, `@web-axag/compiler`, the framework bindings and the in-page runtime — supports it; it becomes normative once the 1.1 review period closes.
 </ProposedPattern>
 
 ```html title="Longhand"
@@ -83,7 +83,7 @@ Each key MAY appear at most once. List values become JSON string arrays: `roles=
 
 ## Converting existing pages
 
-`axag-cli` rewrites files in either direction without touching other attributes:
+The `axag` CLI rewrites files in either direction without touching other attributes:
 
 ```bash
 npx axag fmt src --to macro      # longhand → macro

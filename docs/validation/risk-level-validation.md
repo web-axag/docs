@@ -34,7 +34,7 @@ Incorrect risk levels undermine the entire safety model:
 ```
 Rule: AXAG-LINT-023
 Severity: Error
-Message: Write or delete operation has no risk-level declared
+Message: axag-action-type="write" must declare axag-risk-level
 Fix: Add axag-risk-level appropriate to the operation's impact
 ```
 
@@ -61,7 +61,7 @@ Fix: Add axag-risk-level appropriate to the operation's impact
 ```
 Rule: AXAG-LINT-024
 Severity: Warning
-Message: Delete operation has risk-level below "high"
+Message: Delete action has axag-risk-level="low" — delete actions should typically be "high" or "critical"
 Fix: Verify risk level — most deletions should be "high" or "critical"
 ```
 
@@ -70,37 +70,41 @@ Fix: Verify risk level — most deletions should be "high" or "critical"
 ```
 Rule: AXAG-LINT-025
 Severity: Info
-Message: Read operation has risk-level above "low"
+Message: Read action has axag-risk-level="high" — read actions are typically "none" or "low"
 Fix: Verify — reads are normally "none" unless exposing sensitive data
 ```
 
-### AXAG-LINT-007: Unsupported Risk-Action Combination
+### AXAG-LINT-013: Critical Read
 
 ```
-Rule: AXAG-LINT-007
-Severity: Error
-Message: Invalid combination of risk-level and action-type
+Rule: AXAG-LINT-013
+Default severity: error
+Message: axag-action-type="read" contradicts axag-risk-level="critical" — read operations should not be critical risk
+Fix: Reads don't destroy anything — use "medium" or "high" for sensitive reads
 ```
 
-**Invalid combinations:**
+**Combinations to check:**
 
-| Action Type | Invalid Risk Levels | Reason |
-|------------|-------------------|--------|
-| `read` | `critical` | Reads should never be critical |
-| `navigate` | `high`, `critical` | Navigation should not be high-risk |
-| `delete` | `none` | Deletions always carry risk |
+| Action Type | Questionable Risk Level | Rule |
+|------------|------------------------|------|
+| `read` | `critical` | AXAG-LINT-013 (error) |
+| `read` | above `low` | AXAG-LINT-025 (info) |
+| `delete` | below `high` | AXAG-LINT-024 (warning) |
+| `navigate` | any, when side effects are declared | AXAG-LINT-015 (warning) |
 
 ### AXAG-LINT-026: Safety Metadata Mismatch
 
 The required safety metadata must be proportional to the risk level:
 
-| Risk Level | Required Safety Metadata |
-|-----------|------------------------|
+| Risk Level | Metadata AXAG-LINT-026 expects |
+|-----------|--------------------------------|
 | `none` | None |
 | `low` | `idempotent` recommended |
 | `medium` | `confirmation-required`, `idempotent` |
-| `high` | `confirmation-required`, `preconditions`, `idempotent`, `side-effects` |
-| `critical` | All of `high` + `approval-required`, `approval-roles` |
+| `high` | `confirmation-required`, `idempotent`, `preconditions` |
+| `critical` | All of `high`, plus `approval-required` and `approval-roles` |
+
+`side-effects` is asked for separately, by AXAG-LINT-017, whenever a mutation isn't idempotent.
 
 ```html
 <!-- ❌ High risk without required safety metadata -->

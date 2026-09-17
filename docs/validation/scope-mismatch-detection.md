@@ -32,7 +32,7 @@ Scope mismatches can cause:
 >List All Users</button>
 ```
 
-**Rule:** `AXAG-LINT-004` — Operations with role requirements **MUST** declare a scope.
+**Rule:** `AXAG-LINT-011` (warning) — an operation that names roles, approval roles or a tenant boundary **SHOULD** declare the scope those roles apply within.
 
 **Fix:**
 ```html title="✅ Fix — add tenant scope"
@@ -58,7 +58,7 @@ Scope mismatches can cause:
 >Update Profile</button>
 ```
 
-**Rule:** `AXAG-LINT-018` — Operations on personal entities **SHOULD** use `user` scope, not `global`.
+**Rule:** `AXAG-LINT-018` (warning) — operations on personal entities **SHOULD** use `user` scope, not `global`.
 
 **Fix:**
 ```html title="✅ Fix — use user scope"
@@ -84,7 +84,7 @@ Scope mismatches can cause:
 >Update Settings</button>
 ```
 
-**Rule:** `AXAG-LINT-019` — `superadmin` roles typically imply `global` scope. Verify if `tenant` is correct.
+**Rule:** `AXAG-LINT-019` (warning) — `superadmin` roles typically imply `global` scope. Verify that `tenant` is correct.
 
 ### 4. Cross-Entity Scope Inconsistency
 
@@ -100,34 +100,39 @@ When two operations on the same page operate on the same entity but declare diff
   axag-action-type="delete" axag-scope="global">Delete</button>
 ```
 
-**Rule:** `AXAG-LINT-020` — Operations on the same entity within a page **SHOULD** use consistent scope unless justified.
+**Rule:** `AXAG-LINT-020` (warning) — operations on the same entity within one file **SHOULD** use a consistent scope unless the difference is deliberate.
 
 ## Scope Hierarchy
 
 ```
 global
   └── tenant
-       └── team
-            └── user
+       └── user
+            └── public
 ```
 
 | Scope | Meaning | Typical Operations |
 |-------|---------|-------------------|
 | `global` | Platform-wide, all tenants | System settings, platform analytics |
 | `tenant` | Within a single tenant/organization | Team management, tenant config, business data |
-| `team` | Within a team or department | Team-specific dashboards, shared resources |
-| `user` | Personal to the current user | Profile, preferences, personal data |
+| `user` | Personal to the signed-in user | Profile, preferences, cart, personal data |
+| `public` | No authentication needed | Catalogue browsing, help pages |
+
+These four are the only values the manifest schema accepts. A narrower boundary — a team, a department — is `tenant` plus `axag-required-roles`.
 
 ## Detection Rules Summary
 
 | Rule | Mismatch | Severity |
 |------|----------|----------|
-| `AXAG-LINT-004` | Role requirements without scope | Error |
+| `AXAG-LINT-011` | Role or tenancy attributes without a scope | Warning |
 | `AXAG-LINT-018` | Global scope on personal operations | Warning |
 | `AXAG-LINT-019` | Scope/role hierarchy mismatch | Warning |
-| `AXAG-LINT-020` | Inconsistent scope on same entity | Warning |
-| `AXAG-LINT-021` | Delete operation without scope | Error |
-| `AXAG-LINT-022` | Tenant mutation with user scope | Error |
+| `AXAG-LINT-020` | Inconsistent scope on the same entity | Warning |
+| `AXAG-LINT-021` | Delete operation without scope | Warning |
+| `AXAG-LINT-022` | Tenant-level entity written with user scope | Warning |
+| `AXAG-LINT-036` | Tenant-scoped action that takes the tenant as a parameter | Error |
+
+Scope rules are warnings because only your domain knows the right boundary. AXAG-LINT-036 is an error: a tenant-scoped action that accepts the tenant as a parameter lets an agent name someone else's tenant, which [`@web-axag/server`](/docs/frameworks/safety) then has to refuse.
 
 ## CI Integration
 

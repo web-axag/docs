@@ -80,18 +80,22 @@ These field names are reserved in the Semantic Manifest JSON:
 
 All error codes starting with `AXAG_` are reserved:
 
-- `AXAG_VALIDATION_ERROR`
 - `AXAG_MISSING_PARAM`
 - `AXAG_INVALID_TYPE`
 - `AXAG_OUT_OF_RANGE`
 - `AXAG_INVALID_ENUM`
+- `AXAG_INVALID_FORMAT`
 - `AXAG_PRECONDITION_FAILED`
 - `AXAG_CONFIRMATION_MISSING`
 - `AXAG_APPROVAL_MISSING`
+- `AXAG_APPROVAL_INVALID`
 - `AXAG_SCOPE_VIOLATION`
 - `AXAG_TENANT_BOUNDARY`
 - `AXAG_ROLE_INSUFFICIENT`
+- `AXAG_INTENT_NOT_FOUND`
+- `AXAG_VERSION_MISMATCH` (reserved for future use)
+- `AXAG_RATE_LIMITED` (reserved for future use)
 
 ## Reserved Lint Rule IDs
 
-All IDs matching `AXAG-LINT-XXX` are reserved. Custom rules should use `AXAG-CUSTOM-XXX`.
+All IDs matching `AXAG-LINT-XXX` are reserved. `axag-lint` doesn't load custom rules yet; name checks of your own — a CI script over the manifest, say — `AXAG-CUSTOM-XXX` so they can't collide with future built-in rules.

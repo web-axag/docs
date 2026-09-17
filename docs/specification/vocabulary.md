@@ -13,6 +13,10 @@ The AXAG canonical vocabulary defines all reserved attribute names, their types,
 
 The prefix `axag-` is reserved for AXAG annotations. Implementations MUST NOT use this prefix for non-AXAG purposes.
 
+:::note Which attributes reach the manifest
+Most attributes become a field of the manifest action and of the generated tool. These do not, in 1.1: `axag-confirmation-message`, `axag-approval-count`, `axag-rate-limit`, `axag-cooldown`, `axag-role-escalation`, the visibility attributes, the workflow attributes and the versioning attributes. They are valid in markup and describe intent to a reader, but AXAG tooling doesn't carry or enforce them yet — enforce the behaviour they describe in your own code. The [manifest field reference](/docs/reference/manifest-fields) lists what is carried.
+:::
+
 ## Identity Attributes
 
 | Attribute | Type | Description |
@@ -27,15 +31,15 @@ The prefix `axag-` is reserved for AXAG annotations. Implementations MUST NOT us
 
 | Attribute | Type | Description |
 |-----------|------|-------------|
-| `axag-required-parameters` | `string[]` | JSON array of required parameter names |
-| `axag-optional-parameters` | `string[]` | JSON array of optional parameter names |
+| `axag-required-parameters` | `array` | JSON array of parameter names, or parameter objects (`{"name":"query","type":"string","maxLength":200}`) |
+| `axag-optional-parameters` | `array` | Same form, for optional parameters |
 | `axag-params-from` | `string` | `#id` of the form whose controls supply parameters |
 | `axag-schema` | `string` | Schema binding: `zod:<file>#<export>` or `openapi:[<file>#]<operationId>` |
 | `axag-parameter` | `string` | Parameter name (on input elements) |
-| `axag-parameter-type` | `string` | Parameter data type |
+| `axag-parameter-type` | `enum` | `string`, `number`, `integer`, `boolean`, `array`, `object` |
 | `axag-parameter-required` | `boolean` | Whether the parameter is required |
 | `axag-parameter-description` | `string` | Parameter description |
-| `axag-parameter-format` | `string` | Expected format (email, date, url, etc.) |
+| `axag-parameter-format` | `enum` | `email`, `url`, `date`, `datetime`, `uuid` |
 | `axag-parameter-enum` | `string[]` | Allowed values for enum parameters |
 | `axag-parameter-min` | `number` | Minimum value |
 | `axag-parameter-max` | `number` | Maximum value |

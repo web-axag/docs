@@ -6,6 +6,10 @@ slug: /authoring-guide/annotation-reuse
 ---
 # Annotation Reuse Through Component Libraries
 
+:::tip Reach for the bindings first
+[`@web-axag/react`](/docs/frameworks/react), [`@web-axag/vue`](/docs/frameworks/vue) and [`@web-axag/angular`](/docs/frameworks/angular) attach a `defineAction({...})` spec to a component, register it while the component is mounted, and put the attributes in the DOM. A wrapper like the one below is still useful when you want a design-system component to carry annotations without depending on the SDK.
+:::
+
 In React, Vue, and other component-based frameworks, create annotated wrapper components for reuse.
 
 ## React Example (TypeScript)

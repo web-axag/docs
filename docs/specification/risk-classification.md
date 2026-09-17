@@ -25,3 +25,16 @@ Every mutating operation MUST declare a risk level. Risk classification drives s
 - **Searching products** → `none`
 
 Implementations MUST NOT classify a `delete` action as `none` risk unless the deletion is trivially reversible (e.g., removing an unsaved draft).
+
+Actions at `high` risk and above MUST also be [enforced on the server](/docs/frameworks/safety): a confirmation or approval the agent could skip protects nothing.
+
+## What the Linter Checks
+
+| Rule | Checks |
+|------|--------|
+| AXAG-LINT-023 | `write` and `delete` actions declare a risk level |
+| AXAG-LINT-006 | `high` and `critical` actions require confirmation |
+| AXAG-LINT-026 | Each level declares the safety metadata it needs — `critical` adds approval and approval roles |
+| AXAG-LINT-024 | `delete` actions below `high` are flagged for review |
+| AXAG-LINT-013 | `read` actions aren't `critical` |
+| AXAG-LINT-037 | `high` and `critical` actions are enforced by your server |

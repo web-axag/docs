@@ -9,11 +9,11 @@ description: Register agent actions for as long as the component is mounted.
 # React
 
 ```bash
-npm install @axag/react
+npm install @web-axag/react
 ```
 
 ```tsx
-import { defineAction, useAxag } from '@axag/react';
+import { defineAction, useAxag } from '@web-axag/react';
 
 const deactivateUser = defineAction({
   intent: 'user.deactivate',
@@ -29,7 +29,7 @@ export function DeactivateButton({ userId }: { userId: string }) {
 }
 ```
 
-The hook returns the `axag-*` attributes and a ref. Spreading them puts the annotation in the DOM — where the [DevTools extension](https://axag.org) and any other reader can see it — and registers the action while the component is mounted.
+The hook returns the `axag-*` attributes and a ref. Spreading them puts the annotation in the DOM — where browser DevTools, the linter's DOM checks and any other reader can see it — and registers the action while the component is mounted.
 
 ## Options
 
@@ -43,7 +43,7 @@ The hook returns the `axag-*` attributes and a ref. Spreading them puts the anno
 ## Components you don't own
 
 ```tsx
-import { AxagAction } from '@axag/react';
+import { AxagAction } from '@web-axag/react';
 
 <AxagAction spec={deactivateUser} handler={deactivate}>
   <Button variant="danger">Deactivate</Button>
@@ -60,4 +60,4 @@ Renders a `display: contents` span, so it changes no layout. `as` renders a diff
 
 ## Build-time extraction
 
-A spec held in a module-level `const` is also read by [`@axag/compiler`](/docs/tool-generation/build-time-compilation) at build time, so the same action appears in the manifest without running the app. A spec built from props can't be, and is listed under `dynamic_actions`.
+A spec held in a module-level `const` is also read by [`@web-axag/compiler`](/docs/tool-generation/build-time-compilation) at build time, so the same action appears in the manifest without running the app. A spec built from props can't be, and is listed under `dynamic_actions`.

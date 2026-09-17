@@ -34,7 +34,7 @@ Structural errors prevent the validator from analyzing your annotations further.
 
 1. **Add missing required attributes**: Every annotated element needs `axag-intent`, `axag-entity`, `axag-action-type`
 2. **Fix JSON syntax**: Validate JSON strings in parameter attributes with a JSON linter
-3. **Correct enum values**: Use only allowed values for `axag-action-type` (`read`, `write`, `delete`) and `axag-risk-level` (`none`, `low`, `medium`, `high`, `critical`)
+3. **Correct enum values**: Use only allowed values for `axag-action-type` (`read`, `write`, `delete`, `navigate`) and `axag-risk-level` (`none`, `low`, `medium`, `high`, `critical`)
 
 ## Step 2: Resolve Semantic Warnings
 
@@ -75,38 +75,33 @@ npx axag generate src --manifest axag-manifest.json
 # Edit axag-manifest.json and add the missing action definitions
 ```
 
-## Step 4: Auto-Fix Where Possible
+## Step 4: Let the Tools Do the Mechanical Part
 
-Some validators support auto-fixing:
+`axag-lint` doesn't rewrite files — each finding needs a decision about risk or scope that only you can make. Two commands do help with the mechanical work:
 
 ```bash
-# Auto-fix common issues
-npx axag-lint src/ --fix
+# Suggest annotations for unannotated elements and review them interactively
+npx axag scan ./src
 
-# What auto-fix handles:
-# - Add missing axag-idempotent="false" to write actions
-# - Add axag-confirmation-required="true" to high/critical risk
-# - Fix JSON attribute formatting
-# - Normalize intent naming to snake_case
+# Write the ones you accepted
+npx axag apply --dry-run
+npx axag apply
+
+# Rewrite annotations into one consistent form (macro or longhand)
+npx axag fmt src --to macro
 ```
+
+Suggestions from `axag scan` are inferences from labels and markup. Check every risk level and scope before applying — those are exactly the findings the linter exists to catch.
 
 ## Step 5: Verify with Conformance Check
 
 After remediation, verify your target conformance level:
 
 ```bash
-# Check target level
 npx axag validate src --level intermediate --strict
-
-# Verbose output shows:
-# ✓ 45/45 actions have intent declared
-# ✓ 45/45 actions have parameters with types
-# ✓ 42/45 actions have risk level declared
-# ✗ 3 actions missing risk level (list below)
-#   - admin.view_logs
-#   - config.list_options
-#   - help.search
 ```
+
+The command lists each finding with its location and rule ID, then a summary of files scanned, annotated elements, errors and warnings. `--strict` makes warnings fail the run as well as errors, which is what you want once a level is reached and you're keeping it.
 
 ## Incremental Adoption
 

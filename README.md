@@ -1,6 +1,6 @@
 # AXAG — Agent Experience Accessibility Guidelines
 
-[![Build](https://img.shields.io/github/actions/workflow/status/web-axag/axag-docs/ci.yml?branch=main&label=build)](https://github.com/web-axag/axag-docs/actions)
+[![Build](https://img.shields.io/github/actions/workflow/status/web-axag/docs/ci.yml?branch=main&label=build)](https://github.com/web-axag/docs/actions)
 [![Version](https://img.shields.io/badge/version-1.0.0-green)](https://axag.org)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
@@ -10,7 +10,7 @@
 
 ```bash
 # Clone and install
-git clone https://github.com/web-axag/axag-docs.git
+git clone https://github.com/web-axag/docs.git
 cd axag-docs
 npm install
 

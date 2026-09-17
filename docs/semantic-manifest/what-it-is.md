@@ -26,8 +26,8 @@ The manifest:
   "generated_at": "2026-09-14T00:00:00.000Z",
   "source": {
     "paths": ["src"],
-    "tool": "axag-cli",
-    "tool_version": "1.0.2"
+    "tool": "@web-axag/cli",
+    "tool_version": "1.1.0"
   },
   "conformance": "intermediate",
   "actions": [

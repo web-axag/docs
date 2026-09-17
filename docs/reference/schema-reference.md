@@ -19,7 +19,7 @@ Every AXAG-annotated HTML element uses the following attributes:
 |-----------|------|--------|-------------|
 | `axag-intent` | string | `entity.action` pattern | Canonical intent identifier |
 | `axag-entity` | string | snake_case | Entity this action operates on |
-| `axag-action-type` | string | `read` \| `write` \| `delete` | Operation category |
+| `axag-action-type` | string | `read` \| `write` \| `delete` \| `navigate` | Operation category |
 
 ### Recommended Attributes
 
@@ -57,7 +57,7 @@ Every AXAG-annotated HTML element uses the following attributes:
 
 ## Manifest Schema
 
-See [Schema Conformance](/docs/validation/schema-conformance) for the full JSON Schema definition.
+The canonical JSON Schema is published at [`/schema/v1.1/axag-manifest.schema.json`](pathname:///schema/v1.1/axag-manifest.schema.json); every field is listed in [Manifest Fields](/docs/reference/manifest-fields), and [Schema Conformance](/docs/validation/schema-conformance) covers validating against it.
 
 ## Tool Schema
 
@@ -85,3 +85,34 @@ Generated MCP tools follow this structure:
   }
 }
 ```
+
+The same action as a WebMCP tool definition uses `inputSchema`, and puts the AXAG fields under `annotations.axag` alongside the standard hints:
+
+```json
+{
+  "name": "entity_action",
+  "description": "Description of the action",
+  "inputSchema": {
+    "type": "object",
+    "properties": { "param_name": { "type": "string", "description": "Parameter description" } },
+    "required": ["param_name"]
+  },
+  "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "axag": {
+      "action_type": "read",
+      "risk_level": "medium",
+      "idempotent": true,
+      "confirmation_required": true,
+      "approval_required": false,
+      "source_intent": "entity.action",
+      "source_entity": "entity"
+    }
+  }
+}
+```
+
+`axag generate` writes the first shape with `--tools` and the second with `--webmcp`. See [Tool Mapping Rules](/docs/reference/tool-mapping-rules).
+

@@ -22,5 +22,7 @@ confirm_order       → pre: payment_processed → post: order_confirmed
 
 The agent constructs a dependency graph and executes operations in the correct sequence.
 
+Preconditions and postconditions are strings written for people and agents to read, matched by convention rather than evaluated by AXAG tooling. Use the same wording on both sides — `cart_validated`, not "cart has been validated" in one place and "cart valid" in another — or the chain an agent infers will have gaps. Each operation must still refuse a call whose precondition isn't met, with `AXAG_PRECONDITION_FAILED`.
+
 ## Conflict Detection
 The manifest also enables agents to detect conflicting operations — for example, two operations that both modify the same entity with incompatible postconditions.

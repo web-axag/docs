@@ -101,8 +101,8 @@ export default function PrivacyPolicy() {
         <p>
           If you have any questions about this Privacy Policy or the AXAG DevTools extension, please open an
           issue on the GitHub repository:{' '}
-          <a href="https://github.com/axag-cli/axag-devtools" target="_blank" rel="noopener noreferrer">
-            github.com/axag-cli/axag-devtools
+          <a href="https://github.com/web-axag/devtools" target="_blank" rel="noopener noreferrer">
+            github.com/web-axag/devtools
           </a>.
         </p>
 

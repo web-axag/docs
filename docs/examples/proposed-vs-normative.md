@@ -178,11 +178,27 @@ JSON-LD is an alternative annotation format being evaluated for future specifica
 
 **Why this is "proposed":** The normative annotation format is HTML data attributes (`axag-*`). JSON-LD is being explored as a complementary format for machine-readable page-level declarations.
 
+### Pattern: The `axag` Macro (Proposed)
+
+:::info Proposed Implementation Pattern
+The macro is a proposed pattern in AXAG 1.1, and becomes normative once the 1.1 review period closes. All AXAG tooling already supports it.
+:::
+
+```html
+<button axag="write:user.deactivate!critical?approval&roles=security_admin">Deactivate</button>
+```
+
+It expands to exactly the longhand attributes an author could have written, so a manifest built from either form is identical. See [Macro Syntax](/docs/specification/macro-syntax).
+
+**Why this is "proposed":** the normative annotation format is the longhand `axag-*` attributes. The macro is shorthand over them, under review for 1.2.
+
 ### Pattern: TypeScript Wrapper Component (Proposed)
 
 :::info Proposed Implementation Pattern
 Framework-specific helpers are not part of the specification but are recommended for developer experience.
 :::
+
+The SDK now ships bindings for [React](/docs/frameworks/react), [Vue](/docs/frameworks/vue) and [Angular](/docs/frameworks/angular) that do this and register the action with the agent runtime while the component is mounted. A hand-rolled wrapper like the one below is still fine for a project that only wants the attributes in the DOM.
 
 ```typescript
 import React from 'react';

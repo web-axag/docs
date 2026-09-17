@@ -35,6 +35,12 @@ This distinction prevents agents from assuming that discovery implies permission
 
 This tells the agent: you can see this operation exists, but you cannot execute it without admin approval.
 
+## How the Runtime Decides
+
+[`@web-axag/webmcp`](/docs/frameworks/runtime) computes operability from the page rather than from the attributes: an action whose element is disabled, hidden, `inert`, `aria-disabled` or detached is withdrawn from the agent's tool list, and offered again when the element comes back. So a button your UI disables is already not operable, without annotating it.
+
+The visibility attributes are declarations for readers and for your own code; the 1.1 manifest doesn't carry them. To keep an action off an agent's list deliberately, use the binding's `enabled` option in [React](/docs/frameworks/react), [Vue](/docs/frameworks/vue) or [Angular](/docs/frameworks/angular), and let the server refuse it too.
+
 ## Next Steps
 
 - [Determinism and Trust](/docs/concepts/determinism-and-trust)

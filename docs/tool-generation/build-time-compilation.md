@@ -12,17 +12,17 @@ keywords: [vite, webpack, rollup, unplugin, build, webmcp, virtual module]
 A bundler plugin reads annotations while your app builds, so the manifest and the agent-facing tools are produced from the same sources, at the same moment, as the code that ships.
 
 ```bash
-npm install -D @axag/compiler
+npm install -D @web-axag/compiler
 ```
 
 ```ts title="vite.config.ts"
 import { defineConfig } from 'vite';
-import axag from '@axag/compiler/vite';
+import axag from '@web-axag/compiler/vite';
 
 export default defineConfig({ plugins: [axag()] });
 ```
 
-The plugin is built on [unplugin](https://github.com/unjs/unplugin), so the same implementation ships for Vite, Rollup, webpack, Rspack and esbuild — import from `@axag/compiler/webpack`, `/rollup`, `/rspack` or `/esbuild`.
+The plugin is built on [unplugin](https://github.com/unjs/unplugin), so the same implementation ships for Vite, Rollup, webpack, Rspack and esbuild — import from `@web-axag/compiler/webpack`, `/rollup`, `/rspack` or `/esbuild`.
 
 ## What a build produces
 
@@ -54,7 +54,7 @@ In dev, Vite serves both files from memory and recompiles when an annotated file
 Components can carry the annotation as an object instead of a string. `defineAction` is an identity function — it exists so the value has a name the compiler recognises:
 
 ```tsx title="src/admin/actions.ts"
-import { defineAction } from '@axag/core';
+import { defineAction } from '@web-axag/core';
 
 export const deactivateUser = defineAction({
   intent: 'user.deactivate',
@@ -100,3 +100,8 @@ npx axag generate src --manifest public/.well-known/axag-manifest.json --validat
 
 - [Tool Registry Generation](/docs/tool-generation/tool-registry-generation)
 - [Runtime Consumption Patterns](/docs/tool-generation/runtime-consumption-patterns)
+
+## What the Plugin Doesn't Do
+
+`axag-schema` bindings — a Zod export or an OpenAPI operation — are resolved by the CLI, not by the plugin. A bundler build harvests form markup and reads declared parameters, but an action whose parameters come only from a bound schema will appear without them. Run `npx axag generate src --manifest axag-manifest.json` where those bindings matter. See [Schema Harvesting](/docs/semantic-manifest/schema-harvesting#where-bindings-are-resolved).
+

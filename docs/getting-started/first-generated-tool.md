@@ -11,6 +11,8 @@ keywords: [MCP, tool generation, quickstart]
 
 MCP tool definitions are generated from the Semantic Manifest. Each manifest operation becomes a callable tool that agent runtimes can discover and invoke.
 
+You don't write them. [`@web-axag/compiler`](/docs/tool-generation/build-time-compilation) emits them on every build, or run `npx axag generate src --tools tools/tool-registry.json` in CI.
+
 ## From Manifest to Tool
 
 Given the manifest entry from the previous step, the generated MCP tool definition is:

@@ -31,8 +31,8 @@ Pick a page with 2–5 interactive elements, ideally with a mix of read and writ
 
 ### Generate and test
 ```bash title="Generate manifest & tools from pilot page"
-npx axag scan --input src/pages/pilot/ --output axag-manifest.json
-npx axag generate-tools --manifest axag-manifest.json --output tools/
+npx axag generate src/pages/pilot --manifest axag-manifest.json --tools tools/tool-registry.json --validate
+npx axag-lint src/pages/pilot --manifest axag-manifest.json
 ```
 
 ### Success criteria
@@ -53,7 +53,7 @@ Expand to all customer-facing user flows:
 
 ### Add CI validation
 ```bash title="Add linting to CI"
-npm install -D @web-axag/axag-lint
+npm install -D @web-axag/lint
 # Add the GitHub Actions workflow from the Add Validation to CI tutorial
 ```
 

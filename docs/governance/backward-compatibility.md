@@ -37,11 +37,12 @@ These changes are always safe:
 
 ## Compatibility Matrix
 
-| Consumer Version | Manifest 0.1.x | Manifest 0.2.x | Manifest 1.0.x |
-|-----------------|----------------|----------------|----------------|
-| Agent v0.1.x | ✅ Full | ⚠️ Partial | ❌ Incompatible |
-| Agent v0.2.x | ✅ Full | ✅ Full | ❌ Incompatible |
-| Agent v1.0.x | ✅ Full | ✅ Full | ✅ Full |
+| Consumer built for | Manifest 1.0.x | Manifest 1.1.x | Manifest 2.x |
+|--------------------|----------------|----------------|--------------|
+| 1.0.x | ✅ Full | ⚠️ Works; ignores 1.1 fields such as `tenant_boundary` | ❌ Not guaranteed |
+| 1.1.x | ✅ Full | ✅ Full | ❌ Not guaranteed |
+
+A consumer built for 1.0 can read a 1.1 manifest because 1.1 only adds optional fields. It will not *enforce* what it doesn't know about, which is why the safety fields added in 1.1 are also checked on the server.
 
 ## Robustness Principle
 

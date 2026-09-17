@@ -35,23 +35,31 @@ A mutation is considered unsafely exposed when any of these conditions are true:
 
 ## Detection Rules
 
-### AXAG-LINT-003: Unsafe Mutate Without Confirmation
+### AXAG-LINT-023: Mutation Without a Risk Level
 
 ```
-Rule: AXAG-LINT-003
-Severity: Error
-Message: Mutation operation with risk-level high/critical lacks confirmation requirement
-Fix: Add axag-confirmation-required="true"
+Rule: AXAG-LINT-023
+Default severity: error
+Message: axag-action-type="write" must declare axag-risk-level
+Fix: Add axag-risk-level appropriate to the operation's impact
 ```
 
 **Failing example:**
-```html title="❌ Unsafe — no confirmation on critical delete"
+```html title="❌ Unsafe — no risk level on a delete"
 <button
   axag-intent="account.delete"
   axag-entity="account"
   axag-action-type="delete"
-  axag-risk-level="critical"
 >Delete Account</button>
+```
+
+### AXAG-LINT-006: High Risk Without Confirmation
+
+```
+Rule: AXAG-LINT-006
+Default severity: warning
+Message: axag-risk-level="critical" should have axag-confirmation-required="true"
+Fix: Add axag-confirmation-required="true"
 ```
 
 **Passing example:**
@@ -62,66 +70,60 @@ Fix: Add axag-confirmation-required="true"
   axag-action-type="delete"
   axag-risk-level="critical"
   axag-confirmation-required="true"
+  axag-approval-required="true"
+  axag-approval-roles='["super_admin"]'
   axag-preconditions='["no active subscriptions"]'
   axag-postconditions='["account deactivated","data retention started"]'
   axag-idempotent="true"
->Delete Account</button>
-```
-
-### AXAG-LINT-008: Delete Without Preconditions
-
-```
-Rule: AXAG-LINT-008
-Severity: Warning
-Message: Delete operation has no preconditions declared
-Fix: Add axag-preconditions with state requirements
-```
-
-### AXAG-LINT-009: Financial Mutation Without Approval
-
-```
-Rule: AXAG-LINT-009
-Severity: Error
-Message: Mutation with financial side effects lacks approval requirement
-Fix: Add axag-approval-required="true" and axag-approval-roles
-```
-
-**Example — financial mutation:**
-```html
-<button
-  axag-intent="refund.process"
-  axag-entity="refund"
-  axag-action-type="write"
-  axag-required-parameters='["order_id","amount"]'
-  axag-risk-level="high"
-  axag-side-effects='["payment_refund","accounting_adjustment"]'
-  axag-confirmation-required="true"
-  axag-approval-required="true"
-  axag-approval-roles='["finance_manager"]'
   axag-scope="tenant"
-  axag-idempotent="true"
->Process Refund</button>
+>Delete Account</button>
 ```
 
 ### AXAG-LINT-017: Missing Side Effects Declaration
 
 ```
 Rule: AXAG-LINT-017
-Severity: Warning
-Message: Non-idempotent mutation has no side-effects declared
+Default severity: warning
+Message: Non-idempotent write action should declare axag-side-effects
 Fix: Add axag-side-effects listing observable state changes
 ```
 
-## Risk-Level Enforcement Matrix
+A mutation that isn't idempotent, or doesn't say, must at least tell an agent what repeating it would do.
 
-| Action Type | Minimum Required Safety Metadata |
-|------------|----------------------------------|
-| `read` | None (risk should be `none` or `low`) |
-| `write` (low risk) | `risk-level` |
-| `write` (medium risk) | `risk-level`, `confirmation-required` |
-| `write` (high risk) | `risk-level`, `confirmation-required`, `preconditions` |
-| `delete` | `risk-level`, `confirmation-required`, `preconditions` |
-| `delete` (critical) | All of above + `approval-required`, `approval-roles` |
+### AXAG-LINT-021: Delete Without a Scope
+
+```
+Rule: AXAG-LINT-021
+Default severity: warning
+Message: Delete action should declare axag-scope to indicate blast radius
+Fix: Add axag-scope — how far does this deletion reach?
+```
+
+### AXAG-LINT-026: Safety Metadata Below the Declared Risk
+
+Each risk level asks for the metadata that makes it actionable — `critical` adds approval and approval roles. See [Risk-Level Validation](/docs/validation/risk-level-validation).
+
+### AXAG-LINT-037: No Server Enforcement
+
+```
+Rule: AXAG-LINT-037
+Default severity: warning
+Message: High-risk action has no server-side enforcement
+Fix: Enforce the intent with @web-axag/server, and point the linter at the list it produces
+```
+
+This is the rule that closes the gap the others can't: confirmation and tenant checks in the page only guide a cooperative agent. It reports nothing until `enforcedIntentsPath` in `.axaglintrc.json` points at the intents your server enforces. See [Safety Enforcers](/docs/frameworks/safety).
+
+## Safety Metadata by Action Type
+
+| Action Type | Metadata the linter expects |
+|------------|------------------------------|
+| `read` | Nothing; `critical` risk is an error (AXAG-LINT-013) |
+| `write` | `risk-level`, `idempotent`, plus `side-effects` when not idempotent |
+| `write` (medium) | + `confirmation-required` |
+| `write` (high) | + `preconditions`, and server enforcement |
+| `delete` | `risk-level` (normally `high` or above), `scope` |
+| `critical` (any) | + `approval-required`, `approval-roles` |
 
 ## CI Integration
 

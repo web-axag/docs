@@ -9,14 +9,14 @@ description: Register agent actions for as long as the component is mounted.
 # Vue
 
 ```bash
-npm install @axag/vue
+npm install @web-axag/vue
 ```
 
 ## Composable
 
 ```vue
 <script setup lang="ts">
-import { defineAction, useAxag } from '@axag/vue';
+import { defineAction, useAxag } from '@web-axag/vue';
 
 const addItem = defineAction({
   intent: 'cart.add_item',
@@ -44,7 +44,7 @@ Registration is undone by `onScopeDispose`, so unmounting or leaving a route rem
 ## Directive
 
 ```ts
-import { AxagPlugin } from '@axag/vue';
+import { AxagPlugin } from '@web-axag/vue';
 app.use(AxagPlugin);
 ```
 
@@ -57,4 +57,4 @@ The directive writes the `axag-*` attributes onto the element and registers the 
 
 ## Templates are read at build time too
 
-[`@axag/compiler`](/docs/tool-generation/build-time-compilation) reads `<template>` blocks in `.vue` files, so a static `axag="write:cart.add_item!low"` appears in the manifest. A bound `:axag="spec"` is only known at runtime and is listed under `dynamic_actions`.
+[`@web-axag/compiler`](/docs/tool-generation/build-time-compilation) reads `<template>` blocks in `.vue` files, so a static `axag="write:cart.add_item!low"` appears in the manifest. A bound `:axag="spec"` is only known at runtime and is listed under `dynamic_actions`.

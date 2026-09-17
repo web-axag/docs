@@ -39,4 +39,6 @@ Tool definitions carry role and tenant context from AXAG annotations, enabling a
 }
 ```
 
-Agent runtimes MUST validate the invoking identity's roles and tenant context before executing tools with access control metadata.
+Agent runtimes SHOULD check this metadata before invoking a tool, so an agent doesn't attempt a call it can't make. That check is a courtesy, not a control: the metadata travels with the tool, and an agent that ignores it still reaches your API with the page's session.
+
+The enforcement that counts happens on your server, against the manifest rather than anything the caller sent — [`@web-axag/server`](/docs/frameworks/safety) checks `required_roles`, `scope` and `tenant_boundary` on every call and refuses with `AXAG_ROLE_INSUFFICIENT` or `AXAG_TENANT_BOUNDARY`. A tenant-scoped tool should also not accept the tenant as a parameter; `axag-lint` reports that as AXAG-LINT-036.

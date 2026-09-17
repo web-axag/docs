@@ -10,7 +10,7 @@ slug: /tutorials/bind-schemas
 If your API already validates requests with Zod or describes them in OpenAPI, point AXAG at that definition instead of declaring parameters again. AXAG attributes then only carry intent and safety.
 
 ## Prerequisites
-- `@web-axag/axag-cli` installed (see [Generate a Semantic Manifest](/docs/tutorials/generate-semantic-manifest))
+- `@web-axag/cli` installed (see [Generate a Semantic Manifest](/docs/tutorials/generate-semantic-manifest))
 - For Zod: `zod@4` in your project
 
 ## Option A: a Zod schema

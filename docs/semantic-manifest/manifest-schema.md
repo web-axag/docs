@@ -16,6 +16,7 @@ The Semantic Manifest is validated by a JSON Schema published at [`/schema/v1.1/
 | `source` | `Source` | Yes | Where the annotations were read from |
 | `conformance` | `enum` | Yes | `basic`, `intermediate`, `full` |
 | `actions` | `Action[]` | Yes | Operation definitions |
+| `dynamic_actions` | `object[]` | No | Annotations registered at runtime rather than read at build time (1.1) — `source_file`, `source_line`, `reason` |
 
 ## Source Fields
 | Field | Type | Required | Description |
@@ -68,3 +69,5 @@ The Semantic Manifest is validated by a JSON Schema published at [`/schema/v1.1/
 | `source` | `enum` | No | `harvested:html`, `zod`, `openapi` — where an undeclared parameter came from (1.1) |
 
 Which optional fields a manifest fills in determines its [conformance level](/docs/specification/conformance-levels).
+
+The schema sets `additionalProperties: false`, so a field it doesn't define makes the manifest invalid. Extensions belong in [namespaced attributes](/docs/specification/namespacing), not in the manifest.

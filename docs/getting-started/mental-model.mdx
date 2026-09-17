@@ -48,6 +48,10 @@ Tool definitions generated from the manifest following the Model Context Protoco
 ### Layer 5: Agent Runtime
 The agent reads the tool registry, plans which tools to invoke, validates parameters against constraints, and executes operations.
 
+An agent running in the browser skips the fetch: [`@web-axag/webmcp`](/docs/frameworks/runtime) registers each action with `document.modelContext` while its element is on screen, so the agent's tool list is layer 4, live. The manifest is how agents outside the page — crawlers, server-side agents, registries — see the same operations.
+
+There is a sixth thing, and it isn't a layer: the [server](/docs/frameworks/safety). Everything above declares what the rules are; only your API can refuse a call that breaks them.
+
 ## The Key Insight
 
 <NormativeCallout level="MUST">
@@ -141,13 +145,13 @@ Here is the complete transformation path for a single UI element:
 
 ### Step 5: Agent Invokes the Tool
 The agent runtime:
-1. Discovers `checkout_begin` in the tool registry
+1. Discovers `checkout_begin` — in the tool registry, or registered live in the page
 2. Validates that `cart_id`, `payment_method_id`, and `shipping_address_id` are provided
-3. Checks that `cart_validated` and `inventory_reserved` preconditions are met
+3. Reasons about the `cart_validated` and `inventory_reserved` preconditions, and calls what satisfies them first
 4. Notes that this is a high-risk mutating operation requiring confirmation
-5. Requests user confirmation
-6. Executes the operation
-7. Verifies that `checkout_session_created` postcondition is satisfied
+5. Asks the person to confirm, and carries the confirmation token into the call
+6. Executes the operation — which your server accepts only because the token, roles and tenant check out
+7. Checks the result against the `checkout_session_created` postcondition
 
 ## Next Steps
 
