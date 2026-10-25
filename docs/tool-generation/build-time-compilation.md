@@ -93,7 +93,7 @@ A runtime reading this manifest knows the list of actions is incomplete for that
 Without a bundler, the CLI runs the same compiler:
 
 ```bash
-npx axag generate src --manifest public/.well-known/axag-manifest.json --validate
+npx @web-axag/cli generate src --manifest public/.well-known/axag-manifest.json --validate
 ```
 
 ## Next Steps
@@ -103,5 +103,5 @@ npx axag generate src --manifest public/.well-known/axag-manifest.json --validat
 
 ## What the Plugin Doesn't Do
 
-`axag-schema` bindings — a Zod export or an OpenAPI operation — are resolved by the CLI, not by the plugin. A bundler build harvests form markup and reads declared parameters, but an action whose parameters come only from a bound schema will appear without them. Run `npx axag generate src --manifest axag-manifest.json` where those bindings matter. See [Schema Harvesting](/docs/semantic-manifest/schema-harvesting#where-bindings-are-resolved).
+`axag-schema` bindings — a Zod export or an OpenAPI operation — are resolved by the CLI, not by the plugin. A bundler build harvests form markup and reads declared parameters, but an action whose parameters come only from a bound schema will appear without them. Run `npx @web-axag/cli generate src --manifest axag-manifest.json` where those bindings matter. See [Schema Harvesting](/docs/semantic-manifest/schema-harvesting#where-bindings-are-resolved).
 

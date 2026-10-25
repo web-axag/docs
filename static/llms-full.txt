@@ -842,7 +842,7 @@ The identity, safety and parameter-name attributes fit in one [`axag` macro](/do
 </button>
 ```
 
-Both forms produce the same Semantic Manifest. `npx axag fmt` converts between them.
+Both forms produce the same Semantic Manifest. `npx @web-axag/cli fmt` converts between them.
 
 ## Step 3: Validate Your Annotation
 
@@ -916,7 +916,7 @@ The generated Semantic Manifest entry is:
   "source": {
     "paths": ["src"],
     "tool": "@web-axag/cli",
-    "tool_version": "1.1.0"
+    "tool_version": "1.1.1"
   },
   "conformance": "intermediate",
   "actions": [
@@ -967,7 +967,7 @@ Parameters listed by name (`'["query"]'`) are typed as `string`. To declare type
 Manifests can be generated through:
 
 1. **At build time** — [`@web-axag/compiler`](/docs/tool-generation/build-time-compilation), a plugin for Vite, webpack, Rollup, Rspack and esbuild, writes the manifest and tools into your build output
-2. **In CI** — `npx axag generate src --manifest axag-manifest.json --validate` runs the same compiler without a bundler
+2. **In CI** — `npx @web-axag/cli generate src --manifest axag-manifest.json --validate` runs the same compiler without a bundler
 3. **In the page** — `registerDocument()` from [`@web-axag/webmcp`](/docs/frameworks/runtime) reads annotations from the live DOM, for pages with no build step
 
 The recommended approach is **build-time**: nothing that reads annotations ships to the browser, and the manifest is identical whichever of the three produced it.
@@ -983,7 +983,7 @@ Source: https://axag.org/docs/getting-started/first-generated-tool
 
 MCP tool definitions are generated from the Semantic Manifest. Each manifest operation becomes a callable tool that agent runtimes can discover and invoke.
 
-You don't write them. [`@web-axag/compiler`](/docs/tool-generation/build-time-compilation) emits them on every build, or run `npx axag generate src --tools tools/tool-registry.json` in CI.
+You don't write them. [`@web-axag/compiler`](/docs/tool-generation/build-time-compilation) emits them on every build, or run `npx @web-axag/cli generate src --tools tools/tool-registry.json` in CI.
 
 ## From Manifest to Tool
 
@@ -1209,7 +1209,7 @@ Source: [github.com/web-axag/sdk](https://github.com/web-axag/sdk)
 | Take parameters from a Zod schema or OpenAPI | `@web-axag/schema-zod` or `@web-axag/schema-openapi` |
 | Support browsers without WebMCP | `@web-axag/shim` |
 | Let a desktop agent reach a browser tab | `@web-axag/bridge` |
-| Run a one-off check or build, with no install | `npx axag-lint`, `npx axag` |
+| Run a one-off check or build, with no install | `npx axag-lint`, `npx @web-axag/cli` |
 
 `@web-axag/core` sits under all of them; you rarely install it directly.
 
@@ -1227,10 +1227,9 @@ Source: [github.com/web-axag/sdk](https://github.com/web-axag/sdk)
 
 | Package | What it does |
 |---------|--------------|
-| [`axag`](https://www.npmjs.com/package/axag) | The `axag` command, unscoped so `npx axag …` works without an install. Depends on `@web-axag/cli` and runs its binary; it holds no logic of its own. |
-| [`axag-lint`](https://www.npmjs.com/package/axag-lint) | The `axag-lint` command, the same wrapper arrangement over `@web-axag/lint`. |
+| [`axag-lint`](https://www.npmjs.com/package/axag-lint) | The `axag-lint` command under its bare name, so `npx axag-lint src` runs with no install. It depends on `@web-axag/lint` and runs its binary; it holds no logic of its own. |
 
-Installing `@web-axag/cli` or `@web-axag/lint` as a dev dependency gives you the same commands — these two exist so the one-off `npx` form in this documentation works as written.
+There is no unscoped `axag` package: npm rejects the name as too close to existing ones. Run the CLI as `npx @web-axag/cli <command>`, or install it and use the `axag` binary it puts on your path.
 
 ### Building
 
@@ -1281,21 +1280,21 @@ Installing `@web-axag/cli` or `@web-axag/lint` as a dev dependency gives you the
 
 ## Availability
 
-The thirteen `@web-axag` packages are published on npm at **1.1.0**, alongside the two unscoped commands `axag` and `axag-lint` at the same version. Every package name on this page is the name you install.
+The thirteen `@web-axag` packages are published on npm at **1.1.1**, alongside `axag-lint` under its bare name at the same version. Every package name on this page is the name you install.
 
 ```bash
 npm install -D @web-axag/lint @web-axag/cli
 npm install @web-axag/webmcp
 ```
 
-The two command-line tools are also published under their bare command names, so they run without an install:
+Both command-line tools also run without an install:
 
 ```bash
 npx axag-lint src
-npx axag generate src --manifest axag-manifest.json
+npx @web-axag/cli generate src --manifest axag-manifest.json
 ```
 
-`axag` and `axag-lint` contain no logic — each one depends on `@web-axag/cli` or `@web-axag/lint` and runs its binary. Install the scoped package when you want the library too.
+After installing `@web-axag/cli`, the shorter `npx axag generate …` works too, because the package puts an `axag` binary on your path.
 
 :::note Renamed in 1.1
 `@web-axag/axag-cli` and `@web-axag/axag-lint` are the earlier names of `@web-axag/cli` and `@web-axag/lint`. They are deprecated and stop at their pre-1.1 versions; switch the dependency name to get 1.1.
@@ -2251,9 +2250,9 @@ Each key MAY appear at most once. List values become JSON string arrays: `roles=
 The `axag` CLI rewrites files in either direction without touching other attributes:
 
 ```bash
-npx axag fmt src --to macro      # longhand → macro
-npx axag fmt src --to longhand   # macro → longhand
-npx axag fmt src --check         # CI: fail if any file isn't in macro form
+npx @web-axag/cli fmt src --to macro      # longhand → macro
+npx @web-axag/cli fmt src --to longhand   # macro → longhand
+npx @web-axag/cli fmt src --check         # CI: fail if any file isn't in macro form
 ```
 
 ## Next Steps
@@ -2815,7 +2814,7 @@ The manifest:
   "source": {
     "paths": ["src"],
     "tool": "@web-axag/cli",
-    "tool_version": "1.1.0"
+    "tool_version": "1.1.1"
   },
   "conformance": "intermediate",
   "actions": [
@@ -3166,11 +3165,11 @@ Manifests MUST be validated before consumption by agent runtimes.
 ```yaml
 # Generate the manifest and check it against the JSON Schema
 - name: Generate and validate the manifest
-  run: npx axag generate src --manifest axag-manifest.json --validate
+  run: npx @web-axag/cli generate src --manifest axag-manifest.json --validate
 
 # Check the annotations themselves at a conformance level
 - name: Validate annotations
-  run: npx axag validate src --level intermediate --strict
+  run: npx @web-axag/cli validate src --level intermediate --strict
 ```
 
 `--validate` on `generate` is the schema check: the manifest must match [`axag-manifest.schema.json`](pathname:///schema/v1.1/axag-manifest.schema.json), which rejects unknown fields as well as invalid ones. `axag validate` checks the source annotations instead. A build that generates the manifest with [`@web-axag/compiler`](/docs/tool-generation/build-time-compilation) validates on every build and fails on error diagnostics.
@@ -3519,7 +3518,7 @@ A runtime reading this manifest knows the list of actions is incomplete for that
 Without a bundler, the CLI runs the same compiler:
 
 ```bash
-npx axag generate src --manifest public/.well-known/axag-manifest.json --validate
+npx @web-axag/cli generate src --manifest public/.well-known/axag-manifest.json --validate
 ```
 
 ## Next Steps
@@ -3529,7 +3528,7 @@ npx axag generate src --manifest public/.well-known/axag-manifest.json --validat
 
 ## What the Plugin Doesn't Do
 
-`axag-schema` bindings — a Zod export or an OpenAPI operation — are resolved by the CLI, not by the plugin. A bundler build harvests form markup and reads declared parameters, but an action whose parameters come only from a bound schema will appear without them. Run `npx axag generate src --manifest axag-manifest.json` where those bindings matter. See [Schema Harvesting](/docs/semantic-manifest/schema-harvesting#where-bindings-are-resolved).
+`axag-schema` bindings — a Zod export or an OpenAPI operation — are resolved by the CLI, not by the plugin. A bundler build harvests form markup and reads declared parameters, but an action whose parameters come only from a bound schema will appear without them. Run `npx @web-axag/cli generate src --manifest axag-manifest.json` where those bindings matter. See [Schema Harvesting](/docs/semantic-manifest/schema-harvesting#where-bindings-are-resolved).
 
 ## Tool Registry Generation
 
@@ -8400,7 +8399,7 @@ Rules are turned up, down or off per project rather than rewritten:
 Domain rules of your own — "every billing action must be high risk or above" — aren't part of the linter yet; today that check belongs in a CI script over the generated manifest, which is JSON:
 
 ```bash title="A domain rule over the manifest"
-npx axag generate src --manifest axag-manifest.json
+npx @web-axag/cli generate src --manifest axag-manifest.json
 node -e "const m=require('./axag-manifest.json');\
   const bad=m.actions.filter(a=>['billing','payment','refund'].includes(a.entity) && !['high','critical'].includes(a.risk_level));\
   if (bad.length) { console.error('Financial actions below high risk:', bad.map(a=>a.intent)); process.exit(1); }"
@@ -8543,13 +8542,13 @@ jobs:
         run: npm ci
 
       - name: Generate and validate the manifest
-        run: npx axag generate src --manifest axag-manifest.json --validate
+        run: npx @web-axag/cli generate src --manifest axag-manifest.json --validate
 
       - name: Run AXAG lint rules
         run: npx axag-lint src --manifest axag-manifest.json --format github
 
       - name: Check conformance level
-        run: npx axag validate src --level intermediate --strict
+        run: npx @web-axag/cli validate src --level intermediate --strict
 ```
 
 ## GitLab CI Configuration
@@ -8560,7 +8559,7 @@ axag-validate:
   image: node:20
   script:
     - npm ci
-    - npx axag generate src --manifest axag-manifest.json --validate
+    - npx @web-axag/cli generate src --manifest axag-manifest.json --validate
     - npx axag-lint src --manifest axag-manifest.json --format json
   rules:
     - changes:
@@ -8680,7 +8679,7 @@ The baseline records rule and file, not line numbers, so unrelated edits don't r
 
 ```bash
 # Fail on annotations below a level (basic | intermediate | full)
-npx axag validate src --level intermediate --strict
+npx @web-axag/cli validate src --level intermediate --strict
 ```
 
 `axag validate` runs the same rules as `axag-lint`, limited to the categories that level asks for: identity, enums, parameters and macro syntax at `basic`; safety, scope and harvesting at `intermediate`; contradictions, manifest cross-references and enforcement at `full`.
@@ -8786,14 +8785,14 @@ Intermediate + preconditions/postconditions, side-effects, approval roles, error
 
 ```bash
 # Generate the manifest and validate it against the schema in one step
-npx axag generate src --manifest axag-manifest.json --validate
+npx @web-axag/cli generate src --manifest axag-manifest.json --validate
 
 # Validate a manifest you already have, against a published schema version
 curl -sO https://axag.org/schema/v1.1/axag-manifest.schema.json
 npx ajv-cli validate -s axag-manifest.schema.json -d axag-manifest.json
 
 # Check annotations against a conformance level
-npx axag validate src --level full --strict
+npx @web-axag/cli validate src --level full --strict
 ```
 
 A manifest also reports the level it reached in its own `conformance` field, computed from what its actions declare.
@@ -9612,7 +9611,7 @@ This page catalogs the most frequent AXAG validation failures, their causes, and
 
 **Cause**: The committed manifest was generated from an older version of the source, so it no longer describes what the page does.
 
-**Fix**: Regenerate it — `npx axag generate src --manifest axag-manifest.json` — or let [`@web-axag/compiler`](/docs/tool-generation/build-time-compilation) generate it on every build, which removes this class of failure entirely.
+**Fix**: Regenerate it — `npx @web-axag/cli generate src --manifest axag-manifest.json` — or let [`@web-axag/compiler`](/docs/tool-generation/build-time-compilation) generate it on every build, which removes this class of failure entirely.
 
 ## Manifest Failures
 
@@ -9630,7 +9629,7 @@ This page catalogs the most frequent AXAG validation failures, their causes, and
 
 **Cause**: An element carries both `axag="write:user.deactivate!critical"` and a longhand attribute that says something different, such as `axag-risk-level="low"`.
 
-**Fix**: Keep one form. `npx axag fmt src --to macro` rewrites a file consistently.
+**Fix**: Keep one form. `npx @web-axag/cli fmt src --to macro` rewrites a file consistently.
 
 ## Remediation Guidance
 
@@ -9698,7 +9697,7 @@ After fixing annotations, ensure the Semantic Manifest is in sync:
 
 ```bash title="Regenerate manifest after fixes"
 # Regenerate manifest from annotations
-npx axag generate src --manifest axag-manifest.json
+npx @web-axag/cli generate src --manifest axag-manifest.json
 
 # Or manually add missing intents to existing manifest
 # Edit axag-manifest.json and add the missing action definitions
@@ -9710,15 +9709,17 @@ npx axag generate src --manifest axag-manifest.json
 
 ```bash
 # Suggest annotations for unannotated elements and review them interactively
-npx axag scan ./src
+npx @web-axag/cli scan ./src
 
 # Write the ones you accepted
-npx axag apply --dry-run
-npx axag apply
+npx @web-axag/cli apply --dry-run
+npx @web-axag/cli apply
 
 # Rewrite annotations into one consistent form (macro or longhand)
-npx axag fmt src --to macro
+npx @web-axag/cli fmt src --to macro
 ```
+
+`apply` writes a `.bak` beside every file it changes; pass `--no-backup` when your working tree is already clean in git.
 
 Suggestions from `axag scan` are inferences from labels and markup. Check every risk level and scope before applying — those are exactly the findings the linter exists to catch.
 
@@ -9727,7 +9728,7 @@ Suggestions from `axag scan` are inferences from labels and markup. Check every 
 After remediation, verify your target conformance level:
 
 ```bash
-npx axag validate src --level intermediate --strict
+npx @web-axag/cli validate src --level intermediate --strict
 ```
 
 The command lists each finding with its location and rule ID, then a summary of files scanned, annotated elements, errors and warnings. `--strict` makes warnings fail the run as well as errors, which is what you want once a level is reached and you're keeping it.
@@ -10958,7 +10959,7 @@ axag-required-parameters='[{"name":"quantity","type":"integer","min":1,"max":99}
 {
   "version": "1.1.0",
   "generated_at": "2026-09-14T10:30:00.000Z",
-  "source": { "url": "https://example.com", "paths": ["src"], "tool": "@web-axag/cli", "tool_version": "1.1.0" },
+  "source": { "url": "https://example.com", "paths": ["src"], "tool": "@web-axag/cli", "tool_version": "1.1.1" },
   "conformance": "intermediate",
   "actions": [
     {
@@ -11517,7 +11518,7 @@ Search</button>
       title: 'Generate Semantic Manifest',
       description: 'Run the CLI to extract annotations into a structured JSON manifest.',
       icon: '📋',
-      code: 'npx axag generate src --manifest axag-manifest.json',
+      code: 'npx @web-axag/cli generate src --manifest axag-manifest.json',
       lang: 'bash',
     },
     {
@@ -11525,7 +11526,7 @@ Search</button>
       title: 'Generate MCP Tools',
       description: 'Auto-generate typed tool definitions from the manifest.',
       icon: '🔧',
-      code: 'npx axag generate-tools --manifest axag-manifest.json --output tools/',
+      code: 'npx @web-axag/cli generate-tools --manifest axag-manifest.json --output tools/',
       lang: 'bash',
     },
     {
@@ -11603,13 +11604,13 @@ Add AXAG attributes to your existing HTML element — annotations are purely add
 ### Step 3: Generate the Semantic Manifest
 
 ```bash title="Generate manifest from annotations"
-npx axag generate src --manifest axag-manifest.json
+npx @web-axag/cli generate src --manifest axag-manifest.json
 ```
 
 ### Step 4: Generate the MCP Tool
 
 ```bash title="Generate MCP tools from manifest"
-npx axag generate-tools --manifest axag-manifest.json --output tools/
+npx @web-axag/cli generate-tools --manifest axag-manifest.json --output tools/
 ```
 
 ### Step 5: Agent uses the generated tool
@@ -11652,7 +11653,7 @@ npm install -D @web-axag/cli
 ## Step 2: Scan Source Files
 
 ```bash title="Scan & generate manifest"
-npx axag scan src/ --no-interactive --manifest axag-manifest.json --validate
+npx @web-axag/cli scan src/ --no-interactive --manifest axag-manifest.json --validate
 ```
 
 The scanner:
@@ -11667,7 +11668,7 @@ The scanner:
 {
   "version": "1.1.0",
   "generated_at": "2026-09-14T10:30:00.000Z",
-  "source": { "paths": ["/app/src"], "tool": "@web-axag/cli", "tool_version": "1.1.0" },
+  "source": { "paths": ["/app/src"], "tool": "@web-axag/cli", "tool_version": "1.1.1" },
   "conformance": "intermediate",
   "actions": [
     {
@@ -11733,7 +11734,7 @@ Link: </.well-known/axag-manifest.json>; rel="axag-manifest"
 ```yaml title=".github/workflows/axag.yml" showLineNumbers
 # .github/workflows/axag.yml
 - name: Generate and validate manifest
-  run: npx axag generate src --manifest axag-manifest.json --validate
+  run: npx @web-axag/cli generate src --manifest axag-manifest.json --validate
 
 - name: Deploy manifest
   run: cp axag-manifest.json public/.well-known/axag-manifest.json
@@ -11814,7 +11815,7 @@ Path and query parameters and the `application/json` body are used; header and c
 ## Generate the manifest
 
 ```bash
-npx axag scan src --no-interactive --manifest axag-manifest.json --validate
+npx @web-axag/cli scan src --no-interactive --manifest axag-manifest.json --validate
 ```
 
 ```json title="axag-manifest.json — user.invite"
@@ -11867,7 +11868,7 @@ This tutorial shows how to generate Model Context Protocol (MCP) tool definition
 ## Step 1: Generate Tool Definitions
 
 ```bash title="Generate MCP tools from manifest"
-npx axag generate-tools --manifest axag-manifest.json --output tools/
+npx @web-axag/cli generate-tools --manifest axag-manifest.json --output tools/
 ```
 
 This writes a single registry file, `tools/tool-registry.json`, and prints each tool with its parameter count and risk level:
@@ -12009,7 +12010,7 @@ Create `.axaglintrc.json`. Every rule has a default severity, so list only the o
 }
 ```
 
-`npx axag-lint --init` writes the file with every rule at its default.
+`npx axag-lint --init` writes the file with every rule at its default. The CLI's own config has an equivalent: `npx @web-axag/cli init --yes` takes every default without prompting, which is what you want in a scripted setup.
 
 ## Step 3: Add npm Scripts
 
@@ -12095,7 +12096,7 @@ The manifest is out of date. Regenerate it with `npm run axag:generate`, and gen
 The manifest's `conformance` field is computed from what the annotations actually declare, so it drops when an action is missing risk, scope or idempotency. To fail the build on annotations below a level:
 
 ```bash title="Check annotations against a conformance level"
-npx axag validate src --level intermediate --strict
+npx @web-axag/cli validate src --level intermediate --strict
 ```
 
 ### Lint reports AXAG-LINT-033 for a component action
@@ -12130,7 +12131,7 @@ Pick a page with 2–5 interactive elements, ideally with a mix of read and writ
 
 ### Generate and test
 ```bash title="Generate manifest & tools from pilot page"
-npx axag generate src/pages/pilot --manifest axag-manifest.json --tools tools/tool-registry.json --validate
+npx @web-axag/cli generate src/pages/pilot --manifest axag-manifest.json --tools tools/tool-registry.json --validate
 npx axag-lint src/pages/pilot --manifest axag-manifest.json
 ```
 
@@ -12175,7 +12176,7 @@ npm install -D @web-axag/lint
 
 ### Target full conformance
 ```bash title="Target full conformance"
-npx axag validate src --level full --strict
+npx @web-axag/cli validate src --level full --strict
 ```
 
 The manifest's own `conformance` field is computed from what the annotations declare, so `axag generate --validate` shows where you have reached.

@@ -112,7 +112,7 @@ This page catalogs the most frequent AXAG validation failures, their causes, and
 
 **Cause**: The committed manifest was generated from an older version of the source, so it no longer describes what the page does.
 
-**Fix**: Regenerate it — `npx axag generate src --manifest axag-manifest.json` — or let [`@web-axag/compiler`](/docs/tool-generation/build-time-compilation) generate it on every build, which removes this class of failure entirely.
+**Fix**: Regenerate it — `npx @web-axag/cli generate src --manifest axag-manifest.json` — or let [`@web-axag/compiler`](/docs/tool-generation/build-time-compilation) generate it on every build, which removes this class of failure entirely.
 
 ## Manifest Failures
 
@@ -130,4 +130,4 @@ This page catalogs the most frequent AXAG validation failures, their causes, and
 
 **Cause**: An element carries both `axag="write:user.deactivate!critical"` and a longhand attribute that says something different, such as `axag-risk-level="low"`.
 
-**Fix**: Keep one form. `npx axag fmt src --to macro` rewrites a file consistently.
+**Fix**: Keep one form. `npx @web-axag/cli fmt src --to macro` rewrites a file consistently.

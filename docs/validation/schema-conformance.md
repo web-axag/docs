@@ -102,14 +102,14 @@ Intermediate + preconditions/postconditions, side-effects, approval roles, error
 
 ```bash
 # Generate the manifest and validate it against the schema in one step
-npx axag generate src --manifest axag-manifest.json --validate
+npx @web-axag/cli generate src --manifest axag-manifest.json --validate
 
 # Validate a manifest you already have, against a published schema version
 curl -sO https://axag.org/schema/v1.1/axag-manifest.schema.json
 npx ajv-cli validate -s axag-manifest.schema.json -d axag-manifest.json
 
 # Check annotations against a conformance level
-npx axag validate src --level full --strict
+npx @web-axag/cli validate src --level full --strict
 ```
 
 A manifest also reports the level it reached in its own `conformance` field, computed from what its actions declare.

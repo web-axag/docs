@@ -31,7 +31,7 @@ Pick a page with 2–5 interactive elements, ideally with a mix of read and writ
 
 ### Generate and test
 ```bash title="Generate manifest & tools from pilot page"
-npx axag generate src/pages/pilot --manifest axag-manifest.json --tools tools/tool-registry.json --validate
+npx @web-axag/cli generate src/pages/pilot --manifest axag-manifest.json --tools tools/tool-registry.json --validate
 npx axag-lint src/pages/pilot --manifest axag-manifest.json
 ```
 
@@ -76,7 +76,7 @@ npm install -D @web-axag/lint
 
 ### Target full conformance
 ```bash title="Target full conformance"
-npx axag validate src --level full --strict
+npx @web-axag/cli validate src --level full --strict
 ```
 
 The manifest's own `conformance` field is computed from what the annotations declare, so `axag generate --validate` shows where you have reached.

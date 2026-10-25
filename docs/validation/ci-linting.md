@@ -35,13 +35,13 @@ jobs:
         run: npm ci
 
       - name: Generate and validate the manifest
-        run: npx axag generate src --manifest axag-manifest.json --validate
+        run: npx @web-axag/cli generate src --manifest axag-manifest.json --validate
 
       - name: Run AXAG lint rules
         run: npx axag-lint src --manifest axag-manifest.json --format github
 
       - name: Check conformance level
-        run: npx axag validate src --level intermediate --strict
+        run: npx @web-axag/cli validate src --level intermediate --strict
 ```
 
 ## GitLab CI Configuration
@@ -52,7 +52,7 @@ axag-validate:
   image: node:20
   script:
     - npm ci
-    - npx axag generate src --manifest axag-manifest.json --validate
+    - npx @web-axag/cli generate src --manifest axag-manifest.json --validate
     - npx axag-lint src --manifest axag-manifest.json --format json
   rules:
     - changes:
@@ -172,7 +172,7 @@ The baseline records rule and file, not line numbers, so unrelated edits don't r
 
 ```bash
 # Fail on annotations below a level (basic | intermediate | full)
-npx axag validate src --level intermediate --strict
+npx @web-axag/cli validate src --level intermediate --strict
 ```
 
 `axag validate` runs the same rules as `axag-lint`, limited to the categories that level asks for: identity, enums, parameters and macro syntax at `basic`; safety, scope and harvesting at `intermediate`; contradictions, manifest cross-references and enforcement at `full`.

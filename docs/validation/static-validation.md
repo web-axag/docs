@@ -109,7 +109,7 @@ Rules are turned up, down or off per project rather than rewritten:
 Domain rules of your own — "every billing action must be high risk or above" — aren't part of the linter yet; today that check belongs in a CI script over the generated manifest, which is JSON:
 
 ```bash title="A domain rule over the manifest"
-npx axag generate src --manifest axag-manifest.json
+npx @web-axag/cli generate src --manifest axag-manifest.json
 node -e "const m=require('./axag-manifest.json');\
   const bad=m.actions.filter(a=>['billing','payment','refund'].includes(a.entity) && !['high','critical'].includes(a.risk_level));\
   if (bad.length) { console.error('Financial actions below high risk:', bad.map(a=>a.intent)); process.exit(1); }"

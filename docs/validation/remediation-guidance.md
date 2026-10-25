@@ -69,7 +69,7 @@ After fixing annotations, ensure the Semantic Manifest is in sync:
 
 ```bash title="Regenerate manifest after fixes"
 # Regenerate manifest from annotations
-npx axag generate src --manifest axag-manifest.json
+npx @web-axag/cli generate src --manifest axag-manifest.json
 
 # Or manually add missing intents to existing manifest
 # Edit axag-manifest.json and add the missing action definitions
@@ -81,15 +81,17 @@ npx axag generate src --manifest axag-manifest.json
 
 ```bash
 # Suggest annotations for unannotated elements and review them interactively
-npx axag scan ./src
+npx @web-axag/cli scan ./src
 
 # Write the ones you accepted
-npx axag apply --dry-run
-npx axag apply
+npx @web-axag/cli apply --dry-run
+npx @web-axag/cli apply
 
 # Rewrite annotations into one consistent form (macro or longhand)
-npx axag fmt src --to macro
+npx @web-axag/cli fmt src --to macro
 ```
+
+`apply` writes a `.bak` beside every file it changes; pass `--no-backup` when your working tree is already clean in git.
 
 Suggestions from `axag scan` are inferences from labels and markup. Check every risk level and scope before applying — those are exactly the findings the linter exists to catch.
 
@@ -98,7 +100,7 @@ Suggestions from `axag scan` are inferences from labels and markup. Check every 
 After remediation, verify your target conformance level:
 
 ```bash
-npx axag validate src --level intermediate --strict
+npx @web-axag/cli validate src --level intermediate --strict
 ```
 
 The command lists each finding with its location and rule ID, then a summary of files scanned, annotated elements, errors and warnings. `--strict` makes warnings fail the run as well as errors, which is what you want once a level is reached and you're keeping it.

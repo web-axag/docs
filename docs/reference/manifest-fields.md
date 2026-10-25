@@ -79,7 +79,7 @@ axag-required-parameters='[{"name":"quantity","type":"integer","min":1,"max":99}
 {
   "version": "1.1.0",
   "generated_at": "2026-09-14T10:30:00.000Z",
-  "source": { "url": "https://example.com", "paths": ["src"], "tool": "@web-axag/cli", "tool_version": "1.1.0" },
+  "source": { "url": "https://example.com", "paths": ["src"], "tool": "@web-axag/cli", "tool_version": "1.1.1" },
   "conformance": "intermediate",
   "actions": [
     {

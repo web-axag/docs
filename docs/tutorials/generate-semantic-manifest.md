@@ -22,7 +22,7 @@ npm install -D @web-axag/cli
 ## Step 2: Scan Source Files
 
 ```bash title="Scan & generate manifest"
-npx axag scan src/ --no-interactive --manifest axag-manifest.json --validate
+npx @web-axag/cli scan src/ --no-interactive --manifest axag-manifest.json --validate
 ```
 
 The scanner:
@@ -37,7 +37,7 @@ The scanner:
 {
   "version": "1.1.0",
   "generated_at": "2026-09-14T10:30:00.000Z",
-  "source": { "paths": ["/app/src"], "tool": "@web-axag/cli", "tool_version": "1.1.0" },
+  "source": { "paths": ["/app/src"], "tool": "@web-axag/cli", "tool_version": "1.1.1" },
   "conformance": "intermediate",
   "actions": [
     {
@@ -104,7 +104,7 @@ Link: </.well-known/axag-manifest.json>; rel="axag-manifest"
 ```yaml title=".github/workflows/axag.yml" showLineNumbers
 # .github/workflows/axag.yml
 - name: Generate and validate manifest
-  run: npx axag generate src --manifest axag-manifest.json --validate
+  run: npx @web-axag/cli generate src --manifest axag-manifest.json --validate
 
 - name: Deploy manifest
   run: cp axag-manifest.json public/.well-known/axag-manifest.json

@@ -86,9 +86,9 @@ Each key MAY appear at most once. List values become JSON string arrays: `roles=
 The `axag` CLI rewrites files in either direction without touching other attributes:
 
 ```bash
-npx axag fmt src --to macro      # longhand → macro
-npx axag fmt src --to longhand   # macro → longhand
-npx axag fmt src --check         # CI: fail if any file isn't in macro form
+npx @web-axag/cli fmt src --to macro      # longhand → macro
+npx @web-axag/cli fmt src --to longhand   # macro → longhand
+npx @web-axag/cli fmt src --check         # CI: fail if any file isn't in macro form
 ```
 
 ## Next Steps

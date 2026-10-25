@@ -30,7 +30,7 @@ Create `.axaglintrc.json`. Every rule has a default severity, so list only the o
 }
 ```
 
-`npx axag-lint --init` writes the file with every rule at its default.
+`npx axag-lint --init` writes the file with every rule at its default. The CLI's own config has an equivalent: `npx @web-axag/cli init --yes` takes every default without prompting, which is what you want in a scripted setup.
 
 ## Step 3: Add npm Scripts
 
@@ -116,7 +116,7 @@ The manifest is out of date. Regenerate it with `npm run axag:generate`, and gen
 The manifest's `conformance` field is computed from what the annotations actually declare, so it drops when an action is missing risk, scope or idempotency. To fail the build on annotations below a level:
 
 ```bash title="Check annotations against a conformance level"
-npx axag validate src --level intermediate --strict
+npx @web-axag/cli validate src --level intermediate --strict
 ```
 
 ### Lint reports AXAG-LINT-033 for a component action

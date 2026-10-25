@@ -26,7 +26,7 @@ Source: [github.com/web-axag/sdk](https://github.com/web-axag/sdk)
 | Take parameters from a Zod schema or OpenAPI | `@web-axag/schema-zod` or `@web-axag/schema-openapi` |
 | Support browsers without WebMCP | `@web-axag/shim` |
 | Let a desktop agent reach a browser tab | `@web-axag/bridge` |
-| Run a one-off check or build, with no install | `npx axag-lint`, `npx axag` |
+| Run a one-off check or build, with no install | `npx axag-lint`, `npx @web-axag/cli` |
 
 `@web-axag/core` sits under all of them; you rarely install it directly.
 
@@ -44,10 +44,9 @@ Source: [github.com/web-axag/sdk](https://github.com/web-axag/sdk)
 
 | Package | What it does |
 |---------|--------------|
-| [`axag`](https://www.npmjs.com/package/axag) | The `axag` command, unscoped so `npx axag …` works without an install. Depends on `@web-axag/cli` and runs its binary; it holds no logic of its own. |
-| [`axag-lint`](https://www.npmjs.com/package/axag-lint) | The `axag-lint` command, the same wrapper arrangement over `@web-axag/lint`. |
+| [`axag-lint`](https://www.npmjs.com/package/axag-lint) | The `axag-lint` command under its bare name, so `npx axag-lint src` runs with no install. It depends on `@web-axag/lint` and runs its binary; it holds no logic of its own. |
 
-Installing `@web-axag/cli` or `@web-axag/lint` as a dev dependency gives you the same commands — these two exist so the one-off `npx` form in this documentation works as written.
+There is no unscoped `axag` package: npm rejects the name as too close to existing ones. Run the CLI as `npx @web-axag/cli <command>`, or install it and use the `axag` binary it puts on your path.
 
 ### Building
 
@@ -98,21 +97,21 @@ Installing `@web-axag/cli` or `@web-axag/lint` as a dev dependency gives you the
 
 ## Availability
 
-The thirteen `@web-axag` packages are published on npm at **1.1.0**, alongside the two unscoped commands `axag` and `axag-lint` at the same version. Every package name on this page is the name you install.
+The thirteen `@web-axag` packages are published on npm at **1.1.1**, alongside `axag-lint` under its bare name at the same version. Every package name on this page is the name you install.
 
 ```bash
 npm install -D @web-axag/lint @web-axag/cli
 npm install @web-axag/webmcp
 ```
 
-The two command-line tools are also published under their bare command names, so they run without an install:
+Both command-line tools also run without an install:
 
 ```bash
 npx axag-lint src
-npx axag generate src --manifest axag-manifest.json
+npx @web-axag/cli generate src --manifest axag-manifest.json
 ```
 
-`axag` and `axag-lint` contain no logic — each one depends on `@web-axag/cli` or `@web-axag/lint` and runs its binary. Install the scoped package when you want the library too.
+After installing `@web-axag/cli`, the shorter `npx axag generate …` works too, because the package puts an `axag` binary on your path.
 
 :::note Renamed in 1.1
 `@web-axag/axag-cli` and `@web-axag/axag-lint` are the earlier names of `@web-axag/cli` and `@web-axag/lint`. They are deprecated and stop at their pre-1.1 versions; switch the dependency name to get 1.1.

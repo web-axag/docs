@@ -76,7 +76,7 @@ Path and query parameters and the `application/json` body are used; header and c
 ## Generate the manifest
 
 ```bash
-npx axag scan src --no-interactive --manifest axag-manifest.json --validate
+npx @web-axag/cli scan src --no-interactive --manifest axag-manifest.json --validate
 ```
 
 ```json title="axag-manifest.json — user.invite"

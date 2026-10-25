@@ -16,7 +16,7 @@ This tutorial shows how to generate Model Context Protocol (MCP) tool definition
 ## Step 1: Generate Tool Definitions
 
 ```bash title="Generate MCP tools from manifest"
-npx axag generate-tools --manifest axag-manifest.json --output tools/
+npx @web-axag/cli generate-tools --manifest axag-manifest.json --output tools/
 ```
 
 This writes a single registry file, `tools/tool-registry.json`, and prints each tool with its parameter count and risk level:

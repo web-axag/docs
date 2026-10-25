@@ -97,7 +97,7 @@ def search_products(query):
       title: 'Generate Semantic Manifest',
       description: 'Run the CLI to extract annotations into a structured JSON manifest.',
       icon: '📋',
-      code: 'npx axag generate src --manifest axag-manifest.json',
+      code: 'npx @web-axag/cli generate src --manifest axag-manifest.json',
       lang: 'bash',
     },
     {
@@ -105,7 +105,7 @@ def search_products(query):
       title: 'Generate MCP Tools',
       description: 'Auto-generate typed tool definitions from the manifest.',
       icon: '🔧',
-      code: 'npx axag generate-tools --manifest axag-manifest.json --output tools/',
+      code: 'npx @web-axag/cli generate-tools --manifest axag-manifest.json --output tools/',
       lang: 'bash',
     },
     {
@@ -184,13 +184,13 @@ Add AXAG attributes to your existing HTML element — annotations are purely add
 ### Step 3: Generate the Semantic Manifest
 
 ```bash title="Generate manifest from annotations"
-npx axag generate src --manifest axag-manifest.json
+npx @web-axag/cli generate src --manifest axag-manifest.json
 ```
 
 ### Step 4: Generate the MCP Tool
 
 ```bash title="Generate MCP tools from manifest"
-npx axag generate-tools --manifest axag-manifest.json --output tools/
+npx @web-axag/cli generate-tools --manifest axag-manifest.json --output tools/
 ```
 
 ### Step 5: Agent uses the generated tool
